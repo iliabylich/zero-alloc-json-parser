@@ -7,10 +7,21 @@ const HAS_LENGTH_MASK: u8 = 0b1000_0000;
 const LENGTH_MASK: u8 = 0b0111_0000;
 
 pub(crate) enum NonHeaderByte {
-    Digit { char: u8 },
-    Dot,
-    Exponent,
-    Minus,
+    Digit { char: u8, length_part: Option<u8> },
+    Dot { length_part: Option<u8> },
+    Exponent { length_part: Option<u8> },
+    Minus { length_part: Option<u8> },
+}
+
+impl NonHeaderByte {
+    pub(crate) fn length_part(&self) -> Option<u8> {
+        match self {
+            Self::Digit { length_part, .. }
+            | Self::Dot { length_part }
+            | Self::Exponent { length_part }
+            | Self::Minus { length_part } => *length_part,
+        }
+    }
 }
 
 impl RewriteToTLV for NonHeaderByte {
@@ -38,21 +49,27 @@ impl RewriteToTLV for NonHeaderByte {
 }
 
 impl DecodeTLV<'_> for NonHeaderByte {
-    type ReturnType = (Self, Option<u8>);
+    type ReturnType = Self;
 
-    fn decode_tlv(data: &[u8]) -> (Self, Option<u8>) {
+    fn decode_tlv(data: &[u8]) -> Option<(Self::ReturnType, usize)> {
         let value = data[0] & VALUE_MASK;
-        let length = if data[0] & HAS_LENGTH_MASK == HAS_LENGTH_MASK {
+        let length_part = if data[0] & HAS_LENGTH_MASK == HAS_LENGTH_MASK {
             let l = (data[0] & LENGTH_MASK) >> 4;
             Some(l)
         } else {
             None
         };
         match value {
-            MINUS => (Self::Minus, length),
-            EXPONENT => (Self::Exponent, length),
-            DOT => (Self::Dot, length),
-            0..=9 => (Self::Digit { char: b'0' + value }, length),
+            MINUS => Some((Self::Minus { length_part }, 1)),
+            EXPONENT => Some((Self::Exponent { length_part }, 1)),
+            DOT => Some((Self::Dot { length_part }, 1)),
+            0..=9 => Some((
+                Self::Digit {
+                    char: b'0' + value,
+                    length_part,
+                },
+                1,
+            )),
             _ => panic!("invalid number: {}", value),
         }
     }

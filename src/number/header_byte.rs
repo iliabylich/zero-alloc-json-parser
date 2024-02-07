@@ -46,17 +46,20 @@ impl RewriteToTLV for HeaderByte {
 }
 
 impl DecodeTLV<'_> for HeaderByte {
-    type ReturnType = Option<Self>;
+    type ReturnType = Self;
 
-    fn decode_tlv(data: &[u8]) -> Option<Self> {
+    fn decode_tlv(data: &[u8]) -> Option<(Self::ReturnType, usize)> {
         if data[0] & NUMBER_MASK != NUMBER_MASK {
             return None;
         }
         if data[0] & MULTIBYTE == 0 {
-            return Some(Self {
-                multibyte: false,
-                char: b'0' + (data[0] & 0b1111),
-            });
+            return Some((
+                Self {
+                    multibyte: false,
+                    char: b'0' + (data[0] & 0b1111),
+                },
+                1,
+            ));
         }
         let char = match data[0] & VALUE_MASK {
             MINUS => b'-',
@@ -64,9 +67,12 @@ impl DecodeTLV<'_> for HeaderByte {
             _ => panic!("invalid number"),
         };
 
-        Some(Self {
-            multibyte: true,
-            char,
-        })
+        Some((
+            Self {
+                multibyte: true,
+                char,
+            },
+            1,
+        ))
     }
 }

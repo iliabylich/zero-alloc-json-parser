@@ -10,7 +10,9 @@ fn test_0() {
     assert_eq!(data, [0b001_00000]);
     assert_eq!(rewritten, 1);
 
-    assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(0)));
+    let (decoded, read) = Number::decode_tlv(&data).unwrap();
+    assert_eq!(decoded, IntOrFloat::Integer(0));
+    assert_eq!(read, 1);
 }
 
 #[test]
@@ -20,7 +22,9 @@ fn test_1() {
     assert_eq!(data, [0b001_00001]);
     assert_eq!(rewritten, 1);
 
-    assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(1)));
+    let (decoded, read) = Number::decode_tlv(&data).unwrap();
+    assert_eq!(decoded, IntOrFloat::Integer(1));
+    assert_eq!(read, 1);
 }
 
 #[test]
@@ -30,7 +34,9 @@ fn test_9() {
     assert_eq!(data, [0b001_01001]);
     assert_eq!(rewritten, 1);
 
-    assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(9)));
+    let (decoded, read) = Number::decode_tlv(&data).unwrap();
+    assert_eq!(decoded, IntOrFloat::Integer(9));
+    assert_eq!(read, 1);
 }
 
 #[test]
@@ -40,7 +46,9 @@ fn test_69() {
     assert_eq!(data, [0b001_10110, 0b1010_1001]);
     assert_eq!(rewritten, 2);
 
-    assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(69)));
+    let (decoded, read) = Number::decode_tlv(&data).unwrap();
+    assert_eq!(decoded, IntOrFloat::Integer(69));
+    assert_eq!(read, 2);
 }
 
 #[test]
@@ -73,10 +81,9 @@ fn test_1234567890987654321() {
     );
     assert_eq!(rewritten, 19);
 
-    assert_eq!(
-        Number::decode_tlv(&data),
-        Some(IntOrFloat::Integer(1234567890987654321))
-    );
+    let (decoded, read) = Number::decode_tlv(&data).unwrap();
+    assert_eq!(decoded, IntOrFloat::Integer(1234567890987654321));
+    assert_eq!(read, 19);
 }
 
 #[test]
@@ -92,7 +99,9 @@ fn test_minus_1() {
     );
     assert_eq!(rewritten, 2);
 
-    assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(-1)));
+    let (decoded, read) = Number::decode_tlv(&data).unwrap();
+    assert_eq!(decoded, IntOrFloat::Integer(-1));
+    assert_eq!(read, 2);
 }
 
 #[test]
@@ -109,5 +118,7 @@ fn test_two_point_three() {
     );
     assert_eq!(rewritten, 3);
 
-    assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Float(2.3)));
+    let (decoded, read) = Number::decode_tlv(&data).unwrap();
+    assert_eq!(decoded, IntOrFloat::Float(2.3));
+    assert_eq!(read, 3);
 }

@@ -73,13 +73,13 @@ impl RewriteToTLV for Number {
 }
 
 impl DecodeTLV<'_> for Number {
-    type ReturnType = Option<IntOrFloat>;
+    type ReturnType = IntOrFloat;
 
-    fn decode_tlv(data: &[u8]) -> Option<IntOrFloat> {
-        let header = HeaderByte::decode_tlv(data)?;
+    fn decode_tlv(data: &[u8]) -> Option<(Self::ReturnType, usize)> {
+        let (header, _one_byte_read) = HeaderByte::decode_tlv(data)?;
 
         if !header.multibyte {
-            return Some(IntOrFloat::Integer((header.char - b'0') as i64));
+            return Some((IntOrFloat::Integer((header.char - b'0') as i64), 1));
         }
 
         let mut negative;
@@ -97,26 +97,28 @@ impl DecodeTLV<'_> for Number {
         let mut idx = 1;
         let mut seen_dot = false;
         let mut digits_after_dot = 0;
+        let mut read_total = 1;
 
         loop {
-            let (byte, l) = NonHeaderByte::decode_tlv(&data[idx..]);
+            let (byte, read) = NonHeaderByte::decode_tlv(&data[idx..]).unwrap();
+            read_total += read;
 
-            if let Some(l) = l {
+            if let Some(l) = byte.length_part() {
                 length |= (l as usize) << (3 * (idx - 1));
             }
 
             match byte {
-                NonHeaderByte::Minus => {
+                NonHeaderByte::Minus { .. } => {
                     negative = true;
                 }
-                NonHeaderByte::Exponent => {
+                NonHeaderByte::Exponent { .. } => {
                     panic!("exponents are not supported yet")
                 }
-                NonHeaderByte::Dot => {
+                NonHeaderByte::Dot { .. } => {
                     result = result.make_float();
                     seen_dot = true;
                 }
-                NonHeaderByte::Digit { char } => {
+                NonHeaderByte::Digit { char, .. } => {
                     result = result.add(char - b'0');
                     if seen_dot {
                         digits_after_dot += 1;
@@ -141,6 +143,7 @@ impl DecodeTLV<'_> for Number {
                 }
             };
         }
-        Some(result)
+
+        Some((result, read_total))
     }
 }

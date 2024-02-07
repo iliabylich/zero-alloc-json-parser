@@ -126,9 +126,9 @@ impl RewriteToTLV for String {
 }
 
 impl<'a> DecodeTLV<'a> for String {
-    type ReturnType = Option<&'a [u8]>;
+    type ReturnType = &'a [u8];
 
-    fn decode_tlv(data: &'a [u8]) -> Self::ReturnType {
+    fn decode_tlv(data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
         if data[0] & STRING_MASK != STRING_MASK {
             return None;
         }
@@ -141,7 +141,7 @@ impl<'a> DecodeTLV<'a> for String {
             offset = 2;
         }
         let length = (l2 as usize) << 3 | l1 as usize;
-        Some(&data[offset..(offset + length)])
+        Some((&data[offset..(offset + length)], length + offset))
     }
 }
 
@@ -152,8 +152,9 @@ fn test_string_short() {
     assert_eq!(data, [STRING_MASK | 5, b'h', b'e', b'l', b'l', b'o', 0]);
     assert_eq!(rewritten, 7);
 
-    let decoded = String::decode_tlv(&data).unwrap();
+    let (decoded, read) = String::decode_tlv(&data).unwrap();
     assert_eq!(decoded, b"hello");
+    assert_eq!(read, 6);
 }
 
 #[test]
@@ -196,8 +197,9 @@ fn test_string_long() {
     );
     assert_eq!(rewritten, 28);
 
-    let decoded = String::decode_tlv(&data).unwrap();
+    let (decoded, read) = String::decode_tlv(&data).unwrap();
     assert_eq!(decoded, b"abcdefghijklmnopqrstuvwxyz");
+    assert_eq!(read, 28);
 }
 
 #[test]
@@ -229,6 +231,7 @@ fn test_escaped() {
     );
     assert_eq!(rewritten, 18);
 
-    let decoded = String::decode_tlv(&data).unwrap();
+    let (decoded, read) = String::decode_tlv(&data).unwrap();
     assert_eq!(decoded, b"a\nb\tcd\\e");
+    assert_eq!(read, 9);
 }
