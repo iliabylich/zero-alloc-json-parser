@@ -21,24 +21,59 @@ pub enum Value<'a> {
     Null,
 }
 
+impl<'a> From<Object<'a>> for Value<'a> {
+    fn from(object: Object<'a>) -> Self {
+        Value::Object(object)
+    }
+}
+
+impl<'a> From<Array<'a>> for Value<'a> {
+    fn from(array: Array<'a>) -> Self {
+        Value::Array(array)
+    }
+}
+
+impl<'a> From<&'a [u8]> for Value<'a> {
+    fn from(string: &'a [u8]) -> Self {
+        Value::String(string)
+    }
+}
+
+impl From<IntOrFloat> for Value<'_> {
+    fn from(int_or_float: IntOrFloat) -> Self {
+        match int_or_float {
+            IntOrFloat::Integer(i) => Value::Integer(i),
+            IntOrFloat::Float(f) => Value::Float(f),
+        }
+    }
+}
+
+impl From<f64> for Value<'_> {
+    fn from(float: f64) -> Self {
+        Value::Float(float)
+    }
+}
+
+impl From<TrueFalseNull> for Value<'_> {
+    fn from(true_false_null: TrueFalseNull) -> Self {
+        match true_false_null {
+            TrueFalseNull::True => Value::True,
+            TrueFalseNull::False => Value::False,
+            TrueFalseNull::Null => Value::Null,
+        }
+    }
+}
+
 impl BitmixToTLV for Value<'_> {
     fn bitmix_to_tlv(mut data: &mut [u8]) -> Option<usize> {
         let skipped = skip_ws(data);
         data = &mut data[skipped..];
 
-        if data[0] == b'{' {
-            Object::bitmix_to_tlv(data)
-        } else if data[0] == b'[' {
-            Array::bitmix_to_tlv(data)
-        } else if data[0] == b'"' {
-            String::bitmix_to_tlv(data)
-        } else if data[0] == b'-' || data[0].is_ascii_digit() {
-            Number::bitmix_to_tlv(data)
-        } else if data[0] == b't' || data[0] == b'f' || data[0] == b'n' {
-            TrueFalseNull::bitmix_to_tlv(data)
-        } else {
-            None
-        }
+        None.or_else(|| Object::bitmix_to_tlv(data))
+            .or_else(|| Array::bitmix_to_tlv(data))
+            .or_else(|| String::bitmix_to_tlv(data))
+            .or_else(|| Number::bitmix_to_tlv(data))
+            .or_else(|| TrueFalseNull::bitmix_to_tlv(data))
     }
 }
 
@@ -48,26 +83,11 @@ impl<'a> DecodeTLV<'a> for Value<'a> {
     fn decode_tlv(mut data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
         data = skip_zeroes(data);
 
-        if let Some((object, read)) = Object::decode_tlv(data) {
-            Some((Value::Object(object), read))
-        } else if let Some((array, read)) = Array::decode_tlv(data) {
-            Some((Value::Array(array), read))
-        } else if let Some((string, read)) = String::decode_tlv(data) {
-            Some((Value::String(string), read))
-        } else if let Some((number, read)) = Number::decode_tlv(data) {
-            match number {
-                IntOrFloat::Integer(i) => Some((Value::Integer(i), read)),
-                IntOrFloat::Float(f) => Some((Value::Float(f), read)),
-            }
-        } else if let Some((true_false_null, read)) = TrueFalseNull::decode_tlv(data) {
-            match true_false_null {
-                TrueFalseNull::True => Some((Value::True, read)),
-                TrueFalseNull::False => Some((Value::False, read)),
-                TrueFalseNull::Null => Some((Value::Null, read)),
-            }
-        } else {
-            None
-        }
+        None.or_else(|| Object::decode_tlv(data).map(|(v, read)| (v.into(), read)))
+            .or_else(|| Array::decode_tlv(data).map(|(v, read)| (v.into(), read)))
+            .or_else(|| String::decode_tlv(data).map(|(v, read)| (v.into(), read)))
+            .or_else(|| Number::decode_tlv(data).map(|(v, read)| (v.into(), read)))
+            .or_else(|| TrueFalseNull::decode_tlv(data).map(|(v, read)| (v.into(), read)))
     }
 }
 
