@@ -11,10 +11,9 @@ pub(crate) enum TrueFalseNull {
 }
 
 impl BitmixToTLV for TrueFalseNull {
-    type ExtraPayload = ();
     type ReturnType = ();
 
-    fn bitmix_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8]) -> Option<(Self::ReturnType, usize)> {
         let mut region_size = 0;
         if data.get(0..4) == Some(b"true") {
             data[0] = TRUE_MASK;
@@ -59,7 +58,7 @@ impl DecodeTLV<'_> for TrueFalseNull {
 #[test]
 fn test_true() {
     let mut data = *b"true";
-    let (_, rewritten) = TrueFalseNull::bitmix_to_tlv(&mut data, ()).unwrap();
+    let (_, rewritten) = TrueFalseNull::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(data, [TRUE_MASK, 0, 0, 0]);
     assert_eq!(rewritten, 4);
 
@@ -71,7 +70,7 @@ fn test_true() {
 #[test]
 fn test_false() {
     let mut data = *b"false";
-    let (_, rewritten) = TrueFalseNull::bitmix_to_tlv(&mut data, ()).unwrap();
+    let (_, rewritten) = TrueFalseNull::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(data, [FALSE_MASK, 0, 0, 0, 0]);
     assert_eq!(rewritten, 5);
 
@@ -83,7 +82,7 @@ fn test_false() {
 #[test]
 fn test_null() {
     let mut data = *b"null";
-    let (_, rewritten) = TrueFalseNull::bitmix_to_tlv(&mut data, ()).unwrap();
+    let (_, rewritten) = TrueFalseNull::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(data, [NULL_MASK, 0, 0, 0]);
     assert_eq!(rewritten, 4);
 

@@ -41,10 +41,9 @@ pub(crate) const VALUE_MASK: u8 = 0b0000_1111;
 pub(crate) struct Number;
 
 impl BitmixToTLV for Number {
-    type ExtraPayload = ();
     type ReturnType = ();
 
-    fn bitmix_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8]) -> Option<(Self::ReturnType, usize)> {
         let mut region_size = 0;
         while region_size < data.len() {
             if matches!(data[region_size], b'-' | b'0'..=b'9' | b'.' | b'e' | b'E') {

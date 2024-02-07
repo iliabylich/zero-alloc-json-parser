@@ -22,25 +22,23 @@ pub enum Value<'a> {
 }
 
 impl BitmixToTLV for Value<'_> {
-    type ExtraPayload = ();
-
     type ReturnType = ();
 
-    fn bitmix_to_tlv(mut data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(mut data: &mut [u8]) -> Option<(Self::ReturnType, usize)> {
         if let Some(len) = scan_ws(data) {
             data = &mut data[len..];
         }
 
         if data[0] == b'{' {
-            Object::bitmix_to_tlv(data, ())
+            Object::bitmix_to_tlv(data)
         } else if data[0] == b'[' {
-            Array::bitmix_to_tlv(data, ())
+            Array::bitmix_to_tlv(data)
         } else if data[0] == b'"' {
-            String::bitmix_to_tlv(data, ())
+            String::bitmix_to_tlv(data)
         } else if data[0] == b'-' || data[0].is_ascii_digit() {
-            Number::bitmix_to_tlv(data, ())
+            Number::bitmix_to_tlv(data)
         } else if data[0] == b't' || data[0] == b'f' || data[0] == b'n' {
-            TrueFalseNull::bitmix_to_tlv(data, ())
+            TrueFalseNull::bitmix_to_tlv(data)
         } else {
             None
         }
@@ -99,6 +97,6 @@ fn test_value() {
         "h": null
     }"#;
 
-    let (_, rewritten) = Value::bitmix_to_tlv(&mut data, ()).unwrap();
+    let (_, rewritten) = Value::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(rewritten, data.len());
 }
