@@ -13,7 +13,7 @@ pub(crate) enum NonHeaderByte {
     Minus,
 }
 
-impl<'a> RewriteToTLV for NonHeaderByte {
+impl RewriteToTLV for NonHeaderByte {
     type ExtraPayload = usize;
 
     type ReturnType = usize;
