@@ -1,4 +1,4 @@
-use crate::{length::Length, mask::ARRAY_MASK, number::Number, tlv::RewriteToTLV, ws::scan_ws};
+use crate::{bytesize::Bytesize, mask::ARRAY_MASK, number::Number, tlv::RewriteToTLV, ws::scan_ws};
 
 struct Array;
 
@@ -13,7 +13,6 @@ impl RewriteToTLV for Array {
         }
         let mut region_size = 1;
         let mut found_end = false;
-        let mut length = 0;
 
         while region_size < data.len() {
             if data[region_size] == b']' {
@@ -27,7 +26,6 @@ impl RewriteToTLV for Array {
             } else if let Some((_, len)) = Number::rewrite_to_tlv(&mut data[region_size..], ()) {
                 // TODO: change Number to Value once it's ready
                 region_size += len;
-                length += 1;
             } else {
                 return None;
             }
@@ -39,7 +37,7 @@ impl RewriteToTLV for Array {
         data[0] = 0;
         data[region_size] = 0;
 
-        Length::write(&mut data[..region_size + 1], length);
+        Bytesize::write(&mut data[..region_size + 1], region_size + 1);
         data[0] |= ARRAY_MASK;
 
         Some(((), region_size + 1))
@@ -51,7 +49,7 @@ fn test_array_empty() {
     let mut data = *b"[]";
     let ((), rewritten) = Array::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(rewritten, 2);
-    assert_eq!(data, [ARRAY_MASK, 0]);
+    assert_eq!(data, [ARRAY_MASK | 2, 0]);
 }
 
 #[test]
@@ -62,7 +60,7 @@ fn test_array_short() {
     assert_eq!(
         data,
         [
-            ARRAY_MASK | 3,
+            ARRAY_MASK | 9,
             0b001_00001,
             0,
             0,
@@ -77,7 +75,7 @@ fn test_array_short() {
 
 #[test]
 fn test_array_long() {
-    use crate::length::LONG_CONTAINER_MASK;
+    use crate::bytesize::LONG_CONTAINER_MASK;
 
     let mut data = *b"[1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2]";
     let ((), rewritten) = Array::rewrite_to_tlv(&mut data, ()).unwrap();
@@ -85,9 +83,9 @@ fn test_array_long() {
     assert_eq!(
         data,
         [
-            // length is 16 = 0b10000
+            // length is 48 = 0b110000
             ARRAY_MASK | LONG_CONTAINER_MASK | 0b000, // 3 trailing bits of length
-            0b10,                                     // the rest of the length
+            0b110,                                    // the rest of the length
             0b001_00001,                              // 1
             0,
             0,

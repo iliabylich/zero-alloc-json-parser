@@ -1,7 +1,7 @@
 // #![no_std]
 
 mod array;
-mod length;
+mod bytesize;
 mod mask;
 mod number;
 mod parser;

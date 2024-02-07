@@ -1,5 +1,5 @@
 use crate::{
-    length::Length,
+    bytesize::Bytesize,
     mask::STRING_MASK,
     tlv::{DecodeTLV, RewriteToTLV},
 };
@@ -90,7 +90,7 @@ impl RewriteToTLV for String {
         let end = write_to;
         data[end - 1] = b'"';
 
-        Length::write(&mut data[..end], end - 2);
+        Bytesize::write(&mut data[..end], end - 2);
         data[0] |= STRING_MASK;
 
         Some(((), region_size))
@@ -105,8 +105,8 @@ impl<'a> DecodeTLV<'a> for String {
             return None;
         }
 
-        let Length { length, offset } = Length::read(data);
-        Some((&data[offset..(offset + length)], length + offset))
+        let Bytesize { bytesize, offset } = Bytesize::read(data);
+        Some((&data[offset..(offset + bytesize)], bytesize + offset))
     }
 }
 
@@ -124,7 +124,7 @@ fn test_string_short() {
 
 #[test]
 fn test_string_long() {
-    use crate::length::LONG_CONTAINER_MASK;
+    use crate::bytesize::LONG_CONTAINER_MASK;
 
     let mut data = *b"\"abcdefghijklmnopqrstuvwxyz\"";
     let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
