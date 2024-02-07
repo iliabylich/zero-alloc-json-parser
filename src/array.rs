@@ -1,4 +1,4 @@
-use crate::{number::Number, tlv::RewriteToTLV, ws::scan_ws};
+use crate::{length::Length, mask::ARRAY_MASK, number::Number, tlv::RewriteToTLV, ws::scan_ws};
 
 struct Array;
 
@@ -13,7 +13,8 @@ impl RewriteToTLV for Array {
         }
         let mut region_size = 1;
         let mut found_end = false;
-        // TODO: encode length
+        let mut length = 0;
+
         while region_size < data.len() {
             if data[region_size] == b']' {
                 found_end = true;
@@ -26,6 +27,7 @@ impl RewriteToTLV for Array {
             } else if let Some((_, len)) = Number::rewrite_to_tlv(&mut data[region_size..], ()) {
                 // TODO: change Number to Value once it's ready
                 region_size += len;
+                length += 1;
             } else {
                 return None;
             }
@@ -37,6 +39,9 @@ impl RewriteToTLV for Array {
         data[0] = 0;
         data[region_size] = 0;
 
+        Length::write(&mut data[..region_size + 1], length);
+        data[0] |= ARRAY_MASK;
+
         Some(((), region_size + 1))
     }
 }
@@ -44,18 +49,91 @@ impl RewriteToTLV for Array {
 #[test]
 fn test_array_empty() {
     let mut data = *b"[]";
-    let ((), len) = Array::rewrite_to_tlv(&mut data, ()).unwrap();
-    assert_eq!(len, 2);
-    assert_eq!(&data, b"\0\0");
+    let ((), rewritten) = Array::rewrite_to_tlv(&mut data, ()).unwrap();
+    assert_eq!(rewritten, 2);
+    assert_eq!(data, [ARRAY_MASK, 0]);
 }
 
 #[test]
-fn test_array_non_empty() {
+fn test_array_short() {
     let mut data = *b"[1, 2, 3]";
-    let ((), len) = Array::rewrite_to_tlv(&mut data, ()).unwrap();
-    assert_eq!(len, 9);
+    let ((), rewritten) = Array::rewrite_to_tlv(&mut data, ()).unwrap();
+    assert_eq!(rewritten, 9);
     assert_eq!(
         data,
-        [0, 0b001_00001, 0, 0, 0b001_00010, 0, 0, 0b001_00011, 0]
+        [
+            ARRAY_MASK | 3,
+            0b001_00001,
+            0,
+            0,
+            0b001_00010,
+            0,
+            0,
+            0b001_00011,
+            0
+        ]
+    );
+}
+
+#[test]
+fn test_array_long() {
+    use crate::length::LONG_CONTAINER_MASK;
+
+    let mut data = *b"[1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2]";
+    let ((), rewritten) = Array::rewrite_to_tlv(&mut data, ()).unwrap();
+    assert_eq!(rewritten, 48);
+    assert_eq!(
+        data,
+        [
+            // length is 16 = 0b10000
+            ARRAY_MASK | LONG_CONTAINER_MASK | 0b000, // 3 trailing bits of length
+            0b10,                                     // the rest of the length
+            0b001_00001,                              // 1
+            0,
+            0,
+            0b001_00010, // 2
+            0,
+            0,
+            0b001_00011, // 3
+            0,
+            0,
+            0b001_00100, // 4
+            0,
+            0,
+            0b001_00101, // 5
+            0,
+            0,
+            0b001_00110, // 6
+            0,
+            0,
+            0b001_00111, // 7
+            0,
+            0,
+            0b001_01000, // 8
+            0,
+            0,
+            0b001_01001, // 9
+            0,
+            0,
+            0b001_01000, // 8
+            0,
+            0,
+            0b001_00111, // 7
+            0,
+            0,
+            0b001_00110, // 6
+            0,
+            0,
+            0b001_00101, // 5
+            0,
+            0,
+            0b001_00100, // 4
+            0,
+            0,
+            0b001_00011, // 3
+            0,
+            0,
+            0b001_00010, // 2
+        ]
     );
 }

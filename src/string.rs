@@ -90,7 +90,7 @@ impl RewriteToTLV for String {
         let end = write_to;
         data[end - 1] = b'"';
 
-        Length::write(&mut data[..end]);
+        Length::write(&mut data[..end], end - 2);
         data[0] |= STRING_MASK;
 
         Some(((), region_size))

@@ -13,9 +13,7 @@ pub(crate) struct Length {
 }
 
 impl Length {
-    pub(crate) fn write(data: &mut [u8]) {
-        let mut length = data.len() - 2;
-
+    pub(crate) fn write(data: &mut [u8], mut length: usize) {
         if length > 2048 {
             panic!("container is too long, max 2048 bytes allowed")
         }
