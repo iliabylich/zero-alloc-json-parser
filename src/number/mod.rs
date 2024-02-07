@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests;
 
-mod json_number;
-use json_number::JsonNumber;
+mod int_or_float;
+use int_or_float::IntOrFloat;
 
 mod header_byte;
 use header_byte::HeaderByte;
@@ -36,9 +36,9 @@ pub(crate) const DOT: u8 = 0b1100; // 12
 
 pub(crate) const VALUE_MASK: u8 = 0b0000_1111;
 
-pub(crate) struct JsonNumberTLV;
+pub(crate) struct Number;
 
-impl RewriteToTLV for JsonNumberTLV {
+impl RewriteToTLV for Number {
     type ExtraPayload = ();
     type ReturnType = ();
 
@@ -56,14 +56,14 @@ impl RewriteToTLV for JsonNumberTLV {
     }
 }
 
-impl DecodeTLV<'_> for JsonNumberTLV {
-    type ReturnType = Option<JsonNumber>;
+impl DecodeTLV<'_> for Number {
+    type ReturnType = Option<IntOrFloat>;
 
-    fn decode_tlv(data: &[u8]) -> Option<JsonNumber> {
+    fn decode_tlv(data: &[u8]) -> Option<IntOrFloat> {
         let header = HeaderByte::decode_tlv(data)?;
 
         if !header.multibyte {
-            return Some(JsonNumber::Integer((header.char - b'0') as i64));
+            return Some(IntOrFloat::Integer((header.char - b'0') as i64));
         }
 
         let mut negative;
@@ -71,10 +71,10 @@ impl DecodeTLV<'_> for JsonNumberTLV {
 
         if header.char == b'-' {
             negative = true;
-            result = JsonNumber::Integer(0);
+            result = IntOrFloat::Integer(0);
         } else {
             negative = false;
-            result = JsonNumber::Integer((header.char - b'0') as i64);
+            result = IntOrFloat::Integer((header.char - b'0') as i64);
         }
 
         let mut length = 0;
@@ -119,9 +119,9 @@ impl DecodeTLV<'_> for JsonNumberTLV {
         }
         if digits_after_dot > 0 {
             result = match result {
-                JsonNumber::Integer(_) => panic!("internal error, integer with dot?"),
-                JsonNumber::Float(value) => {
-                    JsonNumber::Float(value / 10_i32.pow(digits_after_dot) as f64)
+                IntOrFloat::Integer(_) => panic!("internal error, integer with dot?"),
+                IntOrFloat::Float(value) => {
+                    IntOrFloat::Float(value / 10_i32.pow(digits_after_dot) as f64)
                 }
             };
         }

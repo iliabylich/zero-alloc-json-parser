@@ -1,10 +1,10 @@
 #[derive(Debug, PartialEq)]
-pub(crate) enum JsonNumber {
+pub(crate) enum IntOrFloat {
     Integer(i64),
     Float(f64),
 }
 
-impl JsonNumber {
+impl IntOrFloat {
     pub(crate) fn add(self, digit: u8) -> Self {
         match self {
             Self::Integer(value) => Self::Integer(value * 10 + (digit as i64)),
