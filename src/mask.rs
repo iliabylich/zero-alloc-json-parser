@@ -6,3 +6,5 @@ pub(crate) const OBJECT_MASK: u8 /* | */ = 0b100_00000;
 pub(crate) const NULL_MASK: u8 /*   | */ = 0b101_00000;
 pub(crate) const TRUE_MASK: u8 /*   | */ = 0b110_00000;
 pub(crate) const FALSE_MASK: u8 /*  | */ = 0b111_00000;
+
+pub(crate) const TYPE_MASK: u8 = 0b111_00000;

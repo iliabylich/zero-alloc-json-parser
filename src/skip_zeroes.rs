@@ -1,4 +1,4 @@
-pub(crate) fn skip_zeroes(data: &[u8]) -> (&[u8], usize) {
+pub(crate) fn skip_zeroes(data: &[u8]) -> &[u8] {
     let mut i = 0;
     while i < data.len() {
         if data[i] == 0 {
@@ -7,5 +7,5 @@ pub(crate) fn skip_zeroes(data: &[u8]) -> (&[u8], usize) {
             break;
         }
     }
-    (&data[i..], i)
+    &data[i..]
 }

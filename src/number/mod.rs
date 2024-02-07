@@ -2,7 +2,7 @@
 mod tests;
 
 mod int_or_float;
-use int_or_float::IntOrFloat;
+pub(crate) use int_or_float::IntOrFloat;
 
 mod header_byte;
 use header_byte::HeaderByte;
@@ -76,6 +76,10 @@ impl DecodeTLV<'_> for Number {
     type ReturnType = IntOrFloat;
 
     fn decode_tlv(data: &[u8]) -> Option<(Self::ReturnType, usize)> {
+        if data.is_empty() {
+            return None;
+        }
+
         let (header, _one_byte_read) = HeaderByte::decode_tlv(data)?;
 
         if !header.multibyte {

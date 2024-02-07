@@ -1,9 +1,16 @@
 use crate::{
-    bytesize::Bytesize, mask::OBJECT_MASK, string::String, tlv::RewriteToTLV, value::Value,
+    bytesize::Bytesize,
+    mask::{OBJECT_MASK, TYPE_MASK},
+    string::String,
+    tlv::{DecodeTLV, RewriteToTLV},
+    value::Value,
     ws::scan_ws,
 };
 
-pub(crate) struct Object;
+#[derive(Debug)]
+pub struct Object<'a> {
+    pub(crate) data: &'a [u8],
+}
 
 #[derive(Debug)]
 enum State {
@@ -13,7 +20,7 @@ enum State {
     ReadingCommaOrEnd,
 }
 
-impl RewriteToTLV for Object {
+impl RewriteToTLV for Object<'_> {
     type ExtraPayload = ();
 
     type ReturnType = ();
@@ -81,14 +88,34 @@ impl RewriteToTLV for Object {
         if !found_end {
             return None;
         }
+        region_size += 1;
 
         data[0] = 0;
-        data[region_size] = 0;
+        data[region_size - 1] = 0;
 
-        Bytesize::write(&mut data[..region_size + 1], region_size + 1);
+        Bytesize::write(&mut data[..region_size], region_size - 2);
         data[0] |= OBJECT_MASK;
 
-        Some(((), region_size + 1))
+        Some(((), region_size))
+    }
+}
+
+impl<'a> DecodeTLV<'a> for Object<'a> {
+    type ReturnType = Self;
+
+    fn decode_tlv(data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
+        if data.is_empty() {
+            return None;
+        }
+        if data[0] & TYPE_MASK != OBJECT_MASK {
+            return None;
+        }
+
+        let Bytesize { bytesize, offset } = Bytesize::read(data);
+        let object = Object {
+            data: &data[offset..(offset + bytesize)],
+        };
+        Some((object, bytesize + offset))
     }
 }
 
@@ -97,22 +124,21 @@ fn test_object_empty() {
     let mut data = *b"{}";
     let ((), rewritten) = Object::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(rewritten, 2);
-    assert_eq!(data, [OBJECT_MASK | 2, 0]);
+    assert_eq!(data, [OBJECT_MASK | 0, 0]);
 }
 
 #[test]
 fn test_object_small() {
-    use crate::{bytesize::LONG_CONTAINER_MASK, mask::STRING_MASK};
+    use crate::mask::STRING_MASK;
 
-    let mut data = *b"{\"a\": 1, \"b\": 2}";
+    let mut data = *br#"{"a": 1, "b": 2}"#;
     let ((), rewritten) = Object::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(rewritten, 16);
     assert_eq!(
         data,
         [
-            // size is 16 = 10000
-            OBJECT_MASK | LONG_CONTAINER_MASK | 0b000, // 3 trailing bits of length
-            0b10,                                      // the rest of the length
+            // size is 14 = 0b1110
+            OBJECT_MASK | 14,
             STRING_MASK | 1,
             b'a',
             0,
@@ -127,6 +153,7 @@ fn test_object_small() {
             0,
             0,
             0b001_00010,
+            0
         ]
     );
 }

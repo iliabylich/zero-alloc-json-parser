@@ -1,5 +1,5 @@
 use crate::{
-    mask::NUMBER_MASK,
+    mask::{NUMBER_MASK, TYPE_MASK},
     number::{MINUS, VALUE_MASK},
     tlv::{DecodeTLV, RewriteToTLV},
 };
@@ -49,7 +49,7 @@ impl DecodeTLV<'_> for HeaderByte {
     type ReturnType = Self;
 
     fn decode_tlv(data: &[u8]) -> Option<(Self::ReturnType, usize)> {
-        if data[0] & NUMBER_MASK != NUMBER_MASK {
+        if data[0] & TYPE_MASK != NUMBER_MASK {
             return None;
         }
         if data[0] & MULTIBYTE == 0 {

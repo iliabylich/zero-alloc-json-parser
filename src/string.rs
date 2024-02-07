@@ -1,6 +1,6 @@
 use crate::{
     bytesize::Bytesize,
-    mask::STRING_MASK,
+    mask::{STRING_MASK, TYPE_MASK},
     tlv::{DecodeTLV, RewriteToTLV},
 };
 
@@ -98,16 +98,32 @@ impl RewriteToTLV for String {
 }
 
 impl<'a> DecodeTLV<'a> for String {
-    type ReturnType = &'a [u8];
+    type ReturnType = &'a str;
 
     fn decode_tlv(data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
-        if data[0] & STRING_MASK != STRING_MASK {
+        if data.is_empty() {
+            return None;
+        }
+        if data[0] & TYPE_MASK != STRING_MASK {
             return None;
         }
 
         let Bytesize { bytesize, offset } = Bytesize::read(data);
-        Some((&data[offset..(offset + bytesize)], bytesize + offset))
+        let bytes = &data[offset..(offset + bytesize)];
+        Some((std::str::from_utf8(bytes).unwrap(), bytesize + offset))
     }
+}
+
+#[test]
+fn test_string_empty() {
+    let mut data = *b"\"\"";
+    let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
+    assert_eq!(data, [STRING_MASK | 0, 0]);
+    assert_eq!(rewritten, 2);
+
+    let (decoded, read) = String::decode_tlv(&data).unwrap();
+    assert_eq!(decoded, "");
+    assert_eq!(read, 1);
 }
 
 #[test]
@@ -118,7 +134,7 @@ fn test_string_short() {
     assert_eq!(rewritten, 7);
 
     let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, b"hello");
+    assert_eq!(decoded, "hello");
     assert_eq!(read, 6);
 }
 
@@ -165,7 +181,7 @@ fn test_string_long() {
     assert_eq!(rewritten, 28);
 
     let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, b"abcdefghijklmnopqrstuvwxyz");
+    assert_eq!(decoded, "abcdefghijklmnopqrstuvwxyz");
     assert_eq!(read, 28);
 }
 
@@ -199,6 +215,6 @@ fn test_escaped() {
     assert_eq!(rewritten, 18);
 
     let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, b"a\nb\tcd\\e");
+    assert_eq!(decoded, "a\nb\tcd\\e");
     assert_eq!(read, 9);
 }

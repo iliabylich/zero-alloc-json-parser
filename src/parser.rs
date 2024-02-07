@@ -1,24 +1,9 @@
-use crate::tlv::{DecodeTLV, RewriteToTLV};
+use crate::{tlv::RewriteToTLV, value::Value};
 
 pub struct Parser;
 
-impl RewriteToTLV for Parser {
-    type ExtraPayload = ();
-
-    type ReturnType = ();
-
-    fn rewrite_to_tlv(
-        _data: &mut [u8],
-        _extra: Self::ExtraPayload,
-    ) -> Option<(Self::ReturnType, usize)> {
-        todo!()
-    }
-}
-
-impl DecodeTLV<'_> for Parser {
-    type ReturnType = ();
-
-    fn decode_tlv(_data: &[u8]) -> Option<(Self::ReturnType, usize)> {
-        todo!()
+impl Parser {
+    pub fn to_tlv(data: &mut [u8]) -> Option<()> {
+        Value::rewrite_to_tlv(data, ()).map(|_| ())
     }
 }

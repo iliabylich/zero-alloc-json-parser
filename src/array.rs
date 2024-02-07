@@ -1,8 +1,17 @@
-use crate::{bytesize::Bytesize, mask::ARRAY_MASK, tlv::RewriteToTLV, value::Value, ws::scan_ws};
+use crate::{
+    bytesize::Bytesize,
+    mask::{ARRAY_MASK, TYPE_MASK},
+    tlv::{DecodeTLV, RewriteToTLV},
+    value::Value,
+    ws::scan_ws,
+};
 
-pub(crate) struct Array;
+#[derive(Debug)]
+pub struct Array<'a> {
+    pub(crate) data: &'a [u8],
+}
 
-impl RewriteToTLV for Array {
+impl RewriteToTLV for Array<'_> {
     type ExtraPayload = ();
 
     type ReturnType = ();
@@ -32,14 +41,34 @@ impl RewriteToTLV for Array {
         if !found_end {
             return None;
         }
+        region_size += 1;
 
         data[0] = 0;
-        data[region_size] = 0;
+        data[region_size - 1] = 0;
 
-        Bytesize::write(&mut data[..region_size + 1], region_size + 1);
+        Bytesize::write(&mut data[..region_size], region_size - 2);
         data[0] |= ARRAY_MASK;
 
-        Some(((), region_size + 1))
+        Some(((), region_size))
+    }
+}
+
+impl<'a> DecodeTLV<'a> for Array<'a> {
+    type ReturnType = Self;
+
+    fn decode_tlv(data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
+        if data.is_empty() {
+            return None;
+        }
+        if data[0] & TYPE_MASK != ARRAY_MASK {
+            return None;
+        }
+
+        let Bytesize { bytesize, offset } = Bytesize::read(data);
+        let array = Array {
+            data: &data[offset..(offset + bytesize)],
+        };
+        Some((array, bytesize + offset))
     }
 }
 
@@ -48,7 +77,10 @@ fn test_array_empty() {
     let mut data = *b"[]";
     let ((), rewritten) = Array::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(rewritten, 2);
-    assert_eq!(data, [ARRAY_MASK | 2, 0]);
+    assert_eq!(data, [ARRAY_MASK | 0, 0]);
+
+    let (decoded, _) = Array::decode_tlv(&data).unwrap();
+    assert_eq!(decoded.data, &[]);
 }
 
 #[test]
@@ -59,7 +91,7 @@ fn test_array_short() {
     assert_eq!(
         data,
         [
-            ARRAY_MASK | 9,
+            ARRAY_MASK | 7,
             0b001_00001,
             0,
             0,
@@ -82,9 +114,9 @@ fn test_array_long() {
     assert_eq!(
         data,
         [
-            // length is 48 = 0b110000
-            ARRAY_MASK | LONG_CONTAINER_MASK | 0b000, // 3 trailing bits of length
-            0b110,                                    // the rest of the length
+            // length is 46 = 0b101110
+            ARRAY_MASK | LONG_CONTAINER_MASK | 0b110, // 3 trailing bits of length
+            0b101,                                    // the rest of the length
             0b001_00001,                              // 1
             0,
             0,

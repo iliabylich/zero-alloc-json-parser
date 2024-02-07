@@ -44,6 +44,9 @@ impl DecodeTLV<'_> for TrueFalseNull {
     type ReturnType = Self;
 
     fn decode_tlv(data: &[u8]) -> Option<(Self::ReturnType, usize)> {
+        if data.is_empty() {
+            return None;
+        }
         match data[0] {
             TRUE_MASK => Some((Self::True, 4)),
             FALSE_MASK => Some((Self::False, 5)),
