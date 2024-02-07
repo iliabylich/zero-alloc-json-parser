@@ -1,5 +1,9 @@
 use crate::{
-    array::Array, object::Object, skip_zeroes::skip_zeroes, string::String, tlv::DecodeTLV,
+    array::Array,
+    object::Object,
+    skip_zeroes::skip_zeroes,
+    string::String,
+    tlv::{DecodeTLV, DecodingResult},
     value::Value,
 };
 
@@ -12,7 +16,10 @@ impl<'a> Iterator for ArrayIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.data = skip_zeroes(self.data);
-        let (element, read) = Value::decode_tlv(self.data)?;
+        let DecodingResult {
+            value: element,
+            size: read,
+        } = Value::decode_tlv(self.data)?;
         self.data = &self.data[read..];
         Some(element)
     }
@@ -36,10 +43,13 @@ impl<'a> Iterator for ObjectIterator<'a> {
         if self.data.is_empty() {
             return None;
         }
-        let (key, read) = String::decode_tlv(self.data)?;
+        let DecodingResult {
+            value: key,
+            size: read,
+        } = String::decode_tlv(self.data)?;
         self.data = &self.data[read..];
         self.data = skip_zeroes(self.data);
-        let (value, read) = Value::decode_tlv(self.data)?;
+        let DecodingResult { value, size: read } = Value::decode_tlv(self.data)?;
         self.data = &self.data[read..];
         Some((key, value))
     }

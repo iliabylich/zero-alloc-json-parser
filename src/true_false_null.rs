@@ -1,6 +1,6 @@
 use crate::{
     mask::{FALSE_MASK, NULL_MASK, TRUE_MASK},
-    tlv::{BitmixToTLV, DecodeTLV},
+    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
 };
 
 #[derive(Debug, PartialEq)]
@@ -40,14 +40,23 @@ impl BitmixToTLV for TrueFalseNull {
 impl DecodeTLV<'_> for TrueFalseNull {
     type ReturnType = Self;
 
-    fn decode_tlv(data: &[u8]) -> Option<(Self::ReturnType, usize)> {
+    fn decode_tlv(data: &[u8]) -> Option<DecodingResult<Self::ReturnType>> {
         if data.is_empty() {
             return None;
         }
         match data[0] {
-            TRUE_MASK => Some((Self::True, 4)),
-            FALSE_MASK => Some((Self::False, 5)),
-            NULL_MASK => Some((Self::Null, 4)),
+            TRUE_MASK => Some(DecodingResult {
+                value: Self::True,
+                size: 4,
+            }),
+            FALSE_MASK => Some(DecodingResult {
+                value: Self::False,
+                size: 5,
+            }),
+            NULL_MASK => Some(DecodingResult {
+                value: Self::Null,
+                size: 4,
+            }),
             _ => None,
         }
     }
@@ -60,9 +69,9 @@ fn test_true() {
     assert_eq!(data, [TRUE_MASK, 0, 0, 0]);
     assert_eq!(rewritten, 4);
 
-    let (decoded, read) = TrueFalseNull::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, TrueFalseNull::True);
-    assert_eq!(read, 4);
+    let DecodingResult { value, size } = TrueFalseNull::decode_tlv(&data).unwrap();
+    assert_eq!(value, TrueFalseNull::True);
+    assert_eq!(size, 4);
 }
 
 #[test]
@@ -72,9 +81,9 @@ fn test_false() {
     assert_eq!(data, [FALSE_MASK, 0, 0, 0, 0]);
     assert_eq!(rewritten, 5);
 
-    let (decoded, read) = TrueFalseNull::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, TrueFalseNull::False);
-    assert_eq!(read, 5);
+    let DecodingResult { value, size } = TrueFalseNull::decode_tlv(&data).unwrap();
+    assert_eq!(value, TrueFalseNull::False);
+    assert_eq!(size, 5);
 }
 
 #[test]
@@ -84,7 +93,7 @@ fn test_null() {
     assert_eq!(data, [NULL_MASK, 0, 0, 0]);
     assert_eq!(rewritten, 4);
 
-    let (decoded, read) = TrueFalseNull::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, TrueFalseNull::Null);
-    assert_eq!(read, 4);
+    let DecodingResult { value, size } = TrueFalseNull::decode_tlv(&data).unwrap();
+    assert_eq!(value, TrueFalseNull::Null);
+    assert_eq!(size, 4);
 }

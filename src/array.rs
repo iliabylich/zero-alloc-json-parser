@@ -1,7 +1,7 @@
 use crate::{
     bytesize::Bytesize,
     mask::{ARRAY_MASK, TYPE_MASK},
-    tlv::{BitmixToTLV, DecodeTLV},
+    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
     value::Value,
     ws::skip_ws,
 };
@@ -52,7 +52,7 @@ impl BitmixToTLV for Array<'_> {
 impl<'a> DecodeTLV<'a> for Array<'a> {
     type ReturnType = Self;
 
-    fn decode_tlv(data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
+    fn decode_tlv(data: &'a [u8]) -> Option<DecodingResult<Self::ReturnType>> {
         if data.is_empty() {
             return None;
         }
@@ -64,7 +64,10 @@ impl<'a> DecodeTLV<'a> for Array<'a> {
         let array = Array {
             data: &data[offset..(offset + bytesize)],
         };
-        Some((array, bytesize + offset))
+        Some(DecodingResult {
+            value: array,
+            size: bytesize + offset,
+        })
     }
 }
 
@@ -75,7 +78,7 @@ fn test_array_empty() {
     assert_eq!(rewritten, 2);
     assert_eq!(data, [ARRAY_MASK | 0, 0]);
 
-    let (decoded, _) = Array::decode_tlv(&data).unwrap();
+    let decoded = Array::decode_tlv(&data).unwrap().value;
     assert_eq!(decoded.data, &[]);
 }
 

@@ -1,6 +1,6 @@
 use crate::{
     number::{IntOrFloat, Number},
-    tlv::{BitmixToTLV, DecodeTLV},
+    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
 };
 
 #[test]
@@ -10,9 +10,9 @@ fn test_0() {
     assert_eq!(data, [0b001_00000]);
     assert_eq!(rewritten, 1);
 
-    let (decoded, read) = Number::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, IntOrFloat::Integer(0));
-    assert_eq!(read, 1);
+    let DecodingResult { value, size } = Number::decode_tlv(&data).unwrap();
+    assert_eq!(value, IntOrFloat::Integer(0));
+    assert_eq!(size, 1);
 }
 
 #[test]
@@ -22,9 +22,9 @@ fn test_1() {
     assert_eq!(data, [0b001_00001]);
     assert_eq!(rewritten, 1);
 
-    let (decoded, read) = Number::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, IntOrFloat::Integer(1));
-    assert_eq!(read, 1);
+    let DecodingResult { value, size } = Number::decode_tlv(&data).unwrap();
+    assert_eq!(value, IntOrFloat::Integer(1));
+    assert_eq!(size, 1);
 }
 
 #[test]
@@ -34,9 +34,9 @@ fn test_9() {
     assert_eq!(data, [0b001_01001]);
     assert_eq!(rewritten, 1);
 
-    let (decoded, read) = Number::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, IntOrFloat::Integer(9));
-    assert_eq!(read, 1);
+    let DecodingResult { value, size } = Number::decode_tlv(&data).unwrap();
+    assert_eq!(value, IntOrFloat::Integer(9));
+    assert_eq!(size, 1);
 }
 
 #[test]
@@ -46,9 +46,9 @@ fn test_69() {
     assert_eq!(data, [0b001_10110, 0b1010_1001]);
     assert_eq!(rewritten, 2);
 
-    let (decoded, read) = Number::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, IntOrFloat::Integer(69));
-    assert_eq!(read, 2);
+    let DecodingResult { value, size } = Number::decode_tlv(&data).unwrap();
+    assert_eq!(value, IntOrFloat::Integer(69));
+    assert_eq!(size, 2);
 }
 
 #[test]
@@ -81,9 +81,9 @@ fn test_1234567890987654321() {
     );
     assert_eq!(rewritten, 19);
 
-    let (decoded, read) = Number::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, IntOrFloat::Integer(1234567890987654321));
-    assert_eq!(read, 19);
+    let DecodingResult { value, size } = Number::decode_tlv(&data).unwrap();
+    assert_eq!(value, IntOrFloat::Integer(1234567890987654321));
+    assert_eq!(size, 19);
 }
 
 #[test]
@@ -99,9 +99,9 @@ fn test_minus_1() {
     );
     assert_eq!(rewritten, 2);
 
-    let (decoded, read) = Number::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, IntOrFloat::Integer(-1));
-    assert_eq!(read, 2);
+    let DecodingResult { value, size } = Number::decode_tlv(&data).unwrap();
+    assert_eq!(value, IntOrFloat::Integer(-1));
+    assert_eq!(size, 2);
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn test_two_point_three() {
     );
     assert_eq!(rewritten, 3);
 
-    let (decoded, read) = Number::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, IntOrFloat::Float(2.3));
-    assert_eq!(read, 3);
+    let DecodingResult { value, size } = Number::decode_tlv(&data).unwrap();
+    assert_eq!(value, IntOrFloat::Float(2.3));
+    assert_eq!(size, 3);
 }

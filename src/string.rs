@@ -1,7 +1,7 @@
 use crate::{
     bytesize::Bytesize,
     mask::{STRING_MASK, TYPE_MASK},
-    tlv::{BitmixToTLV, DecodeTLV},
+    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
 };
 
 pub(crate) struct String;
@@ -97,7 +97,7 @@ impl BitmixToTLV for String {
 impl<'a> DecodeTLV<'a> for String {
     type ReturnType = &'a [u8];
 
-    fn decode_tlv(data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
+    fn decode_tlv(data: &'a [u8]) -> Option<DecodingResult<Self::ReturnType>> {
         if data.is_empty() {
             return None;
         }
@@ -107,7 +107,10 @@ impl<'a> DecodeTLV<'a> for String {
 
         let Bytesize { bytesize, offset } = Bytesize::read(data);
         let bytes = &data[offset..(offset + bytesize)];
-        Some((bytes, bytesize + offset))
+        Some(DecodingResult {
+            value: bytes,
+            size: bytesize + offset,
+        })
     }
 }
 
@@ -118,9 +121,9 @@ fn test_string_empty() {
     assert_eq!(data, [STRING_MASK | 0, 0]);
     assert_eq!(rewritten, 2);
 
-    let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, b"");
-    assert_eq!(read, 1);
+    let DecodingResult { value, size } = String::decode_tlv(&data).unwrap();
+    assert_eq!(value, b"");
+    assert_eq!(size, 1);
 }
 
 #[test]
@@ -130,9 +133,9 @@ fn test_string_short() {
     assert_eq!(data, [STRING_MASK | 5, b'h', b'e', b'l', b'l', b'o', 0]);
     assert_eq!(rewritten, 7);
 
-    let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, b"hello");
-    assert_eq!(read, 6);
+    let DecodingResult { value, size } = String::decode_tlv(&data).unwrap();
+    assert_eq!(value, b"hello");
+    assert_eq!(size, 6);
 }
 
 #[test]
@@ -177,9 +180,9 @@ fn test_string_long() {
     );
     assert_eq!(rewritten, 28);
 
-    let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, b"abcdefghijklmnopqrstuvwxyz");
-    assert_eq!(read, 28);
+    let DecodingResult { value, size } = String::decode_tlv(&data).unwrap();
+    assert_eq!(value, b"abcdefghijklmnopqrstuvwxyz");
+    assert_eq!(size, 28);
 }
 
 #[test]
@@ -211,7 +214,7 @@ fn test_escaped() {
     );
     assert_eq!(rewritten, 18);
 
-    let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, b"a\nb\tcd\\e");
-    assert_eq!(read, 9);
+    let DecodingResult { value, size } = String::decode_tlv(&data).unwrap();
+    assert_eq!(value, b"a\nb\tcd\\e");
+    assert_eq!(size, 9);
 }

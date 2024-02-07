@@ -2,7 +2,7 @@ use crate::{
     bytesize::Bytesize,
     mask::{OBJECT_MASK, TYPE_MASK},
     string::String,
-    tlv::{BitmixToTLV, DecodeTLV},
+    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
     value::Value,
     ws::skip_ws,
 };
@@ -97,7 +97,7 @@ impl BitmixToTLV for Object<'_> {
 impl<'a> DecodeTLV<'a> for Object<'a> {
     type ReturnType = Self;
 
-    fn decode_tlv(data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
+    fn decode_tlv(data: &'a [u8]) -> Option<DecodingResult<Self::ReturnType>> {
         if data.is_empty() {
             return None;
         }
@@ -109,7 +109,10 @@ impl<'a> DecodeTLV<'a> for Object<'a> {
         let object = Object {
             data: &data[offset..(offset + bytesize)],
         };
-        Some((object, bytesize + offset))
+        Some(DecodingResult {
+            value: object,
+            size: bytesize + offset,
+        })
     }
 }
 

@@ -10,7 +10,7 @@ use header_byte::HeaderByte;
 mod non_header_byte;
 use non_header_byte::NonHeaderByte;
 
-use crate::tlv::{BitmixToTLV, DecodeTLV};
+use crate::tlv::{BitmixToTLV, DecodeTLV, DecodingResult};
 
 use self::non_header_byte::{NonHeaderByteChar, NonHeaderByteReadResult};
 
@@ -72,7 +72,7 @@ impl BitmixToTLV for Number {
 impl DecodeTLV<'_> for Number {
     type ReturnType = IntOrFloat;
 
-    fn decode_tlv(data: &[u8]) -> Option<(Self::ReturnType, usize)> {
+    fn decode_tlv(data: &[u8]) -> Option<DecodingResult<Self::ReturnType>> {
         if data.is_empty() {
             return None;
         }
@@ -80,7 +80,10 @@ impl DecodeTLV<'_> for Number {
         let header = HeaderByte::read(data)?;
 
         if !header.multibyte {
-            return Some((IntOrFloat::Integer((header.char - b'0') as i64), 1));
+            return Some(DecodingResult {
+                value: IntOrFloat::Integer((header.char - b'0') as i64),
+                size: 1,
+            });
         }
 
         let mut negative;
@@ -145,6 +148,9 @@ impl DecodeTLV<'_> for Number {
             };
         }
 
-        Some((result, read_total))
+        Some(DecodingResult {
+            value: result,
+            size: read_total,
+        })
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     object::Object,
     skip_zeroes::skip_zeroes,
     string::String,
-    tlv::{BitmixToTLV, DecodeTLV},
+    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
     true_false_null::TrueFalseNull,
     ws::skip_ws,
 };
@@ -80,21 +80,31 @@ impl BitmixToTLV for Value<'_> {
 impl<'a> DecodeTLV<'a> for Value<'a> {
     type ReturnType = Self;
 
-    fn decode_tlv(mut data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
+    fn decode_tlv(mut data: &'a [u8]) -> Option<DecodingResult<Self::ReturnType>> {
         data = skip_zeroes(data);
 
-        None.or_else(|| Object::decode_tlv(data).map(|(v, read)| (v.into(), read)))
-            .or_else(|| Array::decode_tlv(data).map(|(v, read)| (v.into(), read)))
-            .or_else(|| String::decode_tlv(data).map(|(v, read)| (v.into(), read)))
-            .or_else(|| Number::decode_tlv(data).map(|(v, read)| (v.into(), read)))
-            .or_else(|| TrueFalseNull::decode_tlv(data).map(|(v, read)| (v.into(), read)))
+        fn wrap_value<'a, T>(input: DecodingResult<T>) -> DecodingResult<Value<'a>>
+        where
+            T: Into<Value<'a>>,
+        {
+            DecodingResult {
+                value: input.value.into(),
+                size: input.size,
+            }
+        }
+
+        None.or_else(|| Object::decode_tlv(data).map(wrap_value))
+            .or_else(|| Array::decode_tlv(data).map(wrap_value))
+            .or_else(|| String::decode_tlv(data).map(wrap_value))
+            .or_else(|| Number::decode_tlv(data).map(wrap_value))
+            .or_else(|| TrueFalseNull::decode_tlv(data).map(wrap_value))
     }
 }
 
 impl<'a> Value<'a> {
     pub fn from_tlv(data: &'a [u8]) -> Option<Self> {
-        let (decoded, _) = Self::decode_tlv(data)?;
-        Some(decoded)
+        let DecodingResult { value, .. } = Self::decode_tlv(data)?;
+        Some(value)
     }
 }
 
