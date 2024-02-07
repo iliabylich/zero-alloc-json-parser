@@ -3,7 +3,7 @@ use crate::{
     mask::{ARRAY_MASK, TYPE_MASK},
     tlv::{BitmixToTLV, DecodeTLV},
     value::Value,
-    ws::scan_ws,
+    ws::skip_ws,
 };
 
 #[derive(Debug)]
@@ -20,14 +20,14 @@ impl BitmixToTLV for Array<'_> {
         let mut found_end = false;
 
         while region_size < data.len() {
+            region_size += skip_ws(&mut data[region_size..]);
+
             if data[region_size] == b']' {
                 found_end = true;
                 break;
             } else if data[region_size] == b',' {
                 data[region_size] = 0;
                 region_size += 1;
-            } else if let Some(skip_len) = scan_ws(&mut data[region_size..]) {
-                region_size += skip_len;
             } else if let Some(len) = Value::bitmix_to_tlv(&mut data[region_size..]) {
                 region_size += len;
             } else {

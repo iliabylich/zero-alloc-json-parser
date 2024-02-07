@@ -6,7 +6,7 @@ use crate::{
     string::String,
     tlv::{BitmixToTLV, DecodeTLV},
     true_false_null::TrueFalseNull,
-    ws::scan_ws,
+    ws::skip_ws,
 };
 
 #[derive(Debug)]
@@ -23,9 +23,8 @@ pub enum Value<'a> {
 
 impl BitmixToTLV for Value<'_> {
     fn bitmix_to_tlv(mut data: &mut [u8]) -> Option<usize> {
-        if let Some(len) = scan_ws(data) {
-            data = &mut data[len..];
-        }
+        let skipped = skip_ws(data);
+        data = &mut data[skipped..];
 
         if data[0] == b'{' {
             Object::bitmix_to_tlv(data)

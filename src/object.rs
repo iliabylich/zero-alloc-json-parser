@@ -4,7 +4,7 @@ use crate::{
     string::String,
     tlv::{BitmixToTLV, DecodeTLV},
     value::Value,
-    ws::scan_ws,
+    ws::skip_ws,
 };
 
 #[derive(Debug)]
@@ -31,9 +31,7 @@ impl BitmixToTLV for Object<'_> {
         let mut seen_comma = false;
 
         while region_size < data.len() {
-            if let Some(skip_len) = scan_ws(&mut data[region_size..]) {
-                region_size += skip_len;
-            }
+            region_size += skip_ws(&mut data[region_size..]);
 
             match state {
                 State::Key => {

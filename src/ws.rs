@@ -1,4 +1,4 @@
-pub(crate) fn scan_ws(data: &mut [u8]) -> Option<usize> {
+pub(crate) fn skip_ws(data: &mut [u8]) -> usize {
     let mut i = 0;
     while i < data.len() {
         match data[i] {
@@ -9,9 +9,5 @@ pub(crate) fn scan_ws(data: &mut [u8]) -> Option<usize> {
             _ => break,
         }
     }
-    if i == 0 {
-        None
-    } else {
-        Some(i)
-    }
+    i
 }
