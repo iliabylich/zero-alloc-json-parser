@@ -1,6 +1,6 @@
-use crate::{bytesize::Bytesize, mask::ARRAY_MASK, number::Number, tlv::RewriteToTLV, ws::scan_ws};
+use crate::{bytesize::Bytesize, mask::ARRAY_MASK, tlv::RewriteToTLV, value::Value, ws::scan_ws};
 
-struct Array;
+pub(crate) struct Array;
 
 impl RewriteToTLV for Array {
     type ExtraPayload = ();
@@ -23,8 +23,7 @@ impl RewriteToTLV for Array {
                 region_size += 1;
             } else if let Some(skip_len) = scan_ws(&mut data[region_size..]) {
                 region_size += skip_len;
-            } else if let Some((_, len)) = Number::rewrite_to_tlv(&mut data[region_size..], ()) {
-                // TODO: change Number to Value once it's ready
+            } else if let Some((_, len)) = Value::rewrite_to_tlv(&mut data[region_size..], ()) {
                 region_size += len;
             } else {
                 return None;

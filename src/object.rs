@@ -1,9 +1,9 @@
 use crate::{
-    bytesize::Bytesize, mask::OBJECT_MASK, number::Number, string::String, tlv::RewriteToTLV,
+    bytesize::Bytesize, mask::OBJECT_MASK, string::String, tlv::RewriteToTLV, value::Value,
     ws::scan_ws,
 };
 
-struct Object;
+pub(crate) struct Object;
 
 #[derive(Debug)]
 enum State {
@@ -47,9 +47,8 @@ impl RewriteToTLV for Object {
                     }
                 }
                 State::ReadingValue => {
-                    if let Some((_, len)) = Number::rewrite_to_tlv(&mut data[region_size..], ()) {
+                    if let Some((_, len)) = Value::rewrite_to_tlv(&mut data[region_size..], ()) {
                         state = State::ReadingCommaOrEnd;
-                        // TODO: change Number to Value once it's ready
                         region_size += len;
                     } else {
                         return None;
