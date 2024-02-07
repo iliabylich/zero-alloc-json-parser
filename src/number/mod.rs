@@ -55,10 +55,9 @@ impl BitmixToTLV for Number {
             return None;
         }
 
-        let (HeaderByte { multibyte, .. }, _one_byte_written) =
-            HeaderByte::bitmix_to_tlv(data, region_size)?;
+        let header = HeaderByte::write(data, region_size)?;
 
-        if !multibyte {
+        if !header.multibyte {
             return Some(((), 1));
         }
         let mut length_left_to_write = region_size;
@@ -80,7 +79,7 @@ impl DecodeTLV<'_> for Number {
             return None;
         }
 
-        let (header, _one_byte_read) = HeaderByte::decode_tlv(data)?;
+        let header = HeaderByte::read(data)?;
 
         if !header.multibyte {
             return Some((IntOrFloat::Integer((header.char - b'0') as i64), 1));
