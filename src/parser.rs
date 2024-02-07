@@ -1,9 +1,13 @@
-use crate::{tlv::RewriteToTLV, value::Value};
+use crate::{
+    tlv::{DecodeTLV, RewriteToTLV},
+    value::Value,
+};
 
 pub struct Parser;
 
 impl Parser {
-    pub fn to_tlv(data: &mut [u8]) -> Option<()> {
-        Value::rewrite_to_tlv(data, ()).map(|_| ())
+    pub fn parse(data: &mut [u8]) -> Option<Value<'_>> {
+        Value::rewrite_to_tlv(data, ())?;
+        Some(Value::decode_tlv(data)?.0)
     }
 }

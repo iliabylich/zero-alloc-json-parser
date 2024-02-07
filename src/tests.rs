@@ -20,8 +20,7 @@ fn test_parser() {
         "h": null
     }"#;
 
-    Parser::to_tlv(&mut data).unwrap();
-    let result = Value::from_tlv(&data).unwrap();
+    let result = Parser::parse(&mut data).unwrap();
 
     let mut buf = String::with_capacity(1024);
     visit_and_encode(result, &mut buf).unwrap();
