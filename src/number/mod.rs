@@ -38,11 +38,11 @@ pub(crate) const VALUE_MASK: u8 = 0b0000_1111;
 
 pub(crate) struct JsonNumberTLV;
 
-impl RewriteToTLV<'_> for JsonNumberTLV {
+impl RewriteToTLV for JsonNumberTLV {
     type ExtraPayload = ();
     type ReturnType = ();
 
-    fn rewrite_to_tlv(data: &mut [u8], start: usize, end: usize, _extra: ()) {
+    fn rewrite_to_tlv(data: &mut [u8], start: usize, end: usize, _: ()) {
         let HeaderByte { multibyte, .. } = HeaderByte::rewrite_to_tlv(data, start, end, ());
 
         if !multibyte {
@@ -50,7 +50,8 @@ impl RewriteToTLV<'_> for JsonNumberTLV {
         }
         let mut extra_length_to_write = end - start;
         for idx in (start + 1)..end {
-            NonHeaderByte::rewrite_to_tlv(&mut data[idx..], 0, 0, &mut extra_length_to_write);
+            extra_length_to_write =
+                NonHeaderByte::rewrite_to_tlv(&mut data[idx..], 0, 0, extra_length_to_write);
         }
     }
 }

@@ -13,7 +13,7 @@ const LONG_STRING_MASK: u8 = 0b10000;
 
 pub(crate) struct String;
 
-impl RewriteToTLV<'_> for String {
+impl RewriteToTLV for String {
     type ExtraPayload = ();
     type ReturnType = ();
 

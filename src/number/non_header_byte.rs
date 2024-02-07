@@ -13,18 +13,23 @@ pub(crate) enum NonHeaderByte {
     Minus,
 }
 
-impl<'a> RewriteToTLV<'a> for NonHeaderByte {
-    type ExtraPayload = &'a mut usize;
+impl<'a> RewriteToTLV for NonHeaderByte {
+    type ExtraPayload = usize;
 
-    type ReturnType = ();
+    type ReturnType = usize;
 
-    fn rewrite_to_tlv(data: &mut [u8], start: usize, _end: usize, length: &'a mut usize) {
-        let length_component = if *length == 0 {
+    fn rewrite_to_tlv(
+        data: &mut [u8],
+        start: usize,
+        _end: usize,
+        mut length: usize,
+    ) -> Self::ReturnType {
+        let length_component = if length == 0 {
             0
         } else {
-            ((*length % (2 << 3)) << 4) as u8 | HAS_LENGTH_MASK
+            ((length % (2 << 3)) << 4) as u8 | HAS_LENGTH_MASK
         };
-        *length >>= 3;
+        length >>= 3;
         let value_component = match data[start] {
             b'-' => MINUS,
             b'e' => EXPONENT,
@@ -33,6 +38,7 @@ impl<'a> RewriteToTLV<'a> for NonHeaderByte {
             _ => panic!("invalid number"),
         };
         data[start] = length_component | value_component;
+        length
     }
 }
 

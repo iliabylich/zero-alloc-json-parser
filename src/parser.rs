@@ -2,7 +2,7 @@ use crate::tlv::{DecodeTLV, RewriteToTLV};
 
 pub struct Parser;
 
-impl RewriteToTLV<'_> for Parser {
+impl RewriteToTLV for Parser {
     type ExtraPayload = ();
 
     type ReturnType = ();

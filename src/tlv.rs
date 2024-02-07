@@ -1,4 +1,4 @@
-pub(crate) trait RewriteToTLV<'a> {
+pub(crate) trait RewriteToTLV {
     type ExtraPayload;
     type ReturnType;
 

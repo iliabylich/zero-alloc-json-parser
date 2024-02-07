@@ -11,7 +11,7 @@ pub(crate) struct HeaderByte {
     pub(crate) char: u8,
 }
 
-impl RewriteToTLV<'_> for HeaderByte {
+impl RewriteToTLV for HeaderByte {
     type ExtraPayload = ();
     type ReturnType = Self;
 

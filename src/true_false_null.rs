@@ -10,7 +10,7 @@ pub(crate) enum TrueFalseNull {
     Null,
 }
 
-impl RewriteToTLV<'_> for TrueFalseNull {
+impl RewriteToTLV for TrueFalseNull {
     type ExtraPayload = ();
     type ReturnType = ();
 
