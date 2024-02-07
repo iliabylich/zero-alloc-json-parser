@@ -4,6 +4,7 @@ mod array;
 mod bytesize;
 mod mask;
 mod number;
+mod object;
 mod parser;
 mod string;
 mod tlv;
