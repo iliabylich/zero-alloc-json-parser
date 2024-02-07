@@ -1,8 +1,8 @@
-pub(crate) trait RewriteToTLV {
+pub(crate) trait BitmixToTLV {
     type ExtraPayload;
     type ReturnType;
 
-    fn rewrite_to_tlv(
+    fn bitmix_to_tlv(
         data: &mut [u8],
         extra: Self::ExtraPayload,
     ) -> Option<(Self::ReturnType, usize)>;

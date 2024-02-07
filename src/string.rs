@@ -1,7 +1,7 @@
 use crate::{
     bytesize::Bytesize,
     mask::{STRING_MASK, TYPE_MASK},
-    tlv::{DecodeTLV, RewriteToTLV},
+    tlv::{BitmixToTLV, DecodeTLV},
 };
 
 pub(crate) struct String;
@@ -15,11 +15,11 @@ fn unhex(c: u8) -> u8 {
     }
 }
 
-impl RewriteToTLV for String {
+impl BitmixToTLV for String {
     type ExtraPayload = ();
     type ReturnType = ();
 
-    fn rewrite_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
         if data[0] != b'"' {
             return None;
         }
@@ -117,7 +117,7 @@ impl<'a> DecodeTLV<'a> for String {
 #[test]
 fn test_string_empty() {
     let mut data = *b"\"\"";
-    let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
+    let (_, rewritten) = String::bitmix_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [STRING_MASK | 0, 0]);
     assert_eq!(rewritten, 2);
 
@@ -129,7 +129,7 @@ fn test_string_empty() {
 #[test]
 fn test_string_short() {
     let mut data = *b"\"hello\"";
-    let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
+    let (_, rewritten) = String::bitmix_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [STRING_MASK | 5, b'h', b'e', b'l', b'l', b'o', 0]);
     assert_eq!(rewritten, 7);
 
@@ -143,7 +143,7 @@ fn test_string_long() {
     use crate::bytesize::LONG_CONTAINER_MASK;
 
     let mut data = *b"\"abcdefghijklmnopqrstuvwxyz\"";
-    let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
+    let (_, rewritten) = String::bitmix_to_tlv(&mut data, ()).unwrap();
     assert_eq!(
         data,
         [
@@ -188,7 +188,7 @@ fn test_string_long() {
 #[test]
 fn test_escaped() {
     let mut data = *br#""a\nb\tc\u0064\\e""#;
-    let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
+    let (_, rewritten) = String::bitmix_to_tlv(&mut data, ()).unwrap();
     assert_eq!(
         data,
         [

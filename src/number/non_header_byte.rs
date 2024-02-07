@@ -1,6 +1,6 @@
 use crate::{
     number::{DOT, EXPONENT, MINUS, VALUE_MASK},
-    tlv::{DecodeTLV, RewriteToTLV},
+    tlv::{BitmixToTLV, DecodeTLV},
 };
 
 const HAS_LENGTH_MASK: u8 = 0b1000_0000;
@@ -24,12 +24,12 @@ impl NonHeaderByte {
     }
 }
 
-impl RewriteToTLV for NonHeaderByte {
+impl BitmixToTLV for NonHeaderByte {
     type ExtraPayload = usize;
 
     type ReturnType = usize;
 
-    fn rewrite_to_tlv(data: &mut [u8], mut length: usize) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8], mut length: usize) -> Option<(Self::ReturnType, usize)> {
         let length_component = if length == 0 {
             0
         } else {

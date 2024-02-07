@@ -10,7 +10,7 @@ use header_byte::HeaderByte;
 mod non_header_byte;
 use non_header_byte::NonHeaderByte;
 
-use crate::tlv::{DecodeTLV, RewriteToTLV};
+use crate::tlv::{BitmixToTLV, DecodeTLV};
 
 //
 // format: 000YVVVV where:
@@ -38,11 +38,11 @@ pub(crate) const VALUE_MASK: u8 = 0b0000_1111;
 
 pub(crate) struct Number;
 
-impl RewriteToTLV for Number {
+impl BitmixToTLV for Number {
     type ExtraPayload = ();
     type ReturnType = ();
 
-    fn rewrite_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
         let mut region_size = 0;
         while region_size < data.len() {
             if matches!(data[region_size], b'-' | b'0'..=b'9' | b'.' | b'e' | b'E') {
@@ -56,7 +56,7 @@ impl RewriteToTLV for Number {
         }
 
         let (HeaderByte { multibyte, .. }, _one_byte_written) =
-            HeaderByte::rewrite_to_tlv(data, region_size)?;
+            HeaderByte::bitmix_to_tlv(data, region_size)?;
 
         if !multibyte {
             return Some(((), 1));
@@ -64,7 +64,7 @@ impl RewriteToTLV for Number {
         let mut length_left_to_write = region_size;
         for idx in 1..region_size {
             let (length_left, _one_byte_written) =
-                NonHeaderByte::rewrite_to_tlv(&mut data[idx..], length_left_to_write)?;
+                NonHeaderByte::bitmix_to_tlv(&mut data[idx..], length_left_to_write)?;
             length_left_to_write = length_left;
         }
 

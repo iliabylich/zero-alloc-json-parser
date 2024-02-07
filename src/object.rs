@@ -2,7 +2,7 @@ use crate::{
     bytesize::Bytesize,
     mask::{OBJECT_MASK, TYPE_MASK},
     string::String,
-    tlv::{DecodeTLV, RewriteToTLV},
+    tlv::{BitmixToTLV, DecodeTLV},
     value::Value,
     ws::scan_ws,
 };
@@ -20,12 +20,12 @@ enum State {
     CommaOrEnd,
 }
 
-impl RewriteToTLV for Object<'_> {
+impl BitmixToTLV for Object<'_> {
     type ExtraPayload = ();
 
     type ReturnType = ();
 
-    fn rewrite_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
         if data[0] != b'{' {
             return None;
         }
@@ -41,7 +41,7 @@ impl RewriteToTLV for Object<'_> {
 
             match state {
                 State::Key => {
-                    if let Some((_, len)) = String::rewrite_to_tlv(&mut data[region_size..], ()) {
+                    if let Some((_, len)) = String::bitmix_to_tlv(&mut data[region_size..], ()) {
                         state = State::Colon;
                         region_size += len;
                     } else if seen_comma {
@@ -54,7 +54,7 @@ impl RewriteToTLV for Object<'_> {
                     }
                 }
                 State::Value => {
-                    if let Some((_, len)) = Value::rewrite_to_tlv(&mut data[region_size..], ()) {
+                    if let Some((_, len)) = Value::bitmix_to_tlv(&mut data[region_size..], ()) {
                         state = State::CommaOrEnd;
                         region_size += len;
                     } else {
@@ -122,7 +122,7 @@ impl<'a> DecodeTLV<'a> for Object<'a> {
 #[test]
 fn test_object_empty() {
     let mut data = *b"{}";
-    let ((), rewritten) = Object::rewrite_to_tlv(&mut data, ()).unwrap();
+    let ((), rewritten) = Object::bitmix_to_tlv(&mut data, ()).unwrap();
     assert_eq!(rewritten, 2);
     assert_eq!(data, [OBJECT_MASK | 0, 0]);
 }
@@ -132,7 +132,7 @@ fn test_object_small() {
     use crate::mask::STRING_MASK;
 
     let mut data = *br#"{"a": 1, "b": 2}"#;
-    let ((), rewritten) = Object::rewrite_to_tlv(&mut data, ()).unwrap();
+    let ((), rewritten) = Object::bitmix_to_tlv(&mut data, ()).unwrap();
     assert_eq!(rewritten, 16);
     assert_eq!(
         data,

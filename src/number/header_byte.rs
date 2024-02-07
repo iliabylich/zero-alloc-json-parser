@@ -1,7 +1,7 @@
 use crate::{
     mask::{NUMBER_MASK, TYPE_MASK},
     number::{MINUS, VALUE_MASK},
-    tlv::{DecodeTLV, RewriteToTLV},
+    tlv::{BitmixToTLV, DecodeTLV},
 };
 
 const MULTIBYTE: u8 = 0b10000;
@@ -11,11 +11,11 @@ pub(crate) struct HeaderByte {
     pub(crate) char: u8,
 }
 
-impl RewriteToTLV for HeaderByte {
+impl BitmixToTLV for HeaderByte {
     type ExtraPayload = usize;
     type ReturnType = Self;
 
-    fn rewrite_to_tlv(data: &mut [u8], length: usize) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8], length: usize) -> Option<(Self::ReturnType, usize)> {
         if length == 1 {
             let header_byte = NUMBER_MASK | (data[0] - b'0');
             data[0] = header_byte;
