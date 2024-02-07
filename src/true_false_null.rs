@@ -33,7 +33,7 @@ impl RewriteToTLV<'_> for TrueFalseNull {
     }
 }
 
-impl DecodeTLV for TrueFalseNull {
+impl DecodeTLV<'_> for TrueFalseNull {
     type ReturnType = Option<(Self, usize)>;
 
     fn decode_tlv(data: &[u8]) -> Self::ReturnType {

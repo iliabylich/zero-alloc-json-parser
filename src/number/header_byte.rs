@@ -40,7 +40,7 @@ impl RewriteToTLV<'_> for HeaderByte {
     }
 }
 
-impl DecodeTLV for HeaderByte {
+impl DecodeTLV<'_> for HeaderByte {
     type ReturnType = Option<Self>;
 
     fn decode_tlv(data: &[u8]) -> Option<Self> {

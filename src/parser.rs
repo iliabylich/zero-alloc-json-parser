@@ -17,7 +17,7 @@ impl RewriteToTLV<'_> for Parser {
     }
 }
 
-impl DecodeTLV for Parser {
+impl DecodeTLV<'_> for Parser {
     type ReturnType = ();
 
     fn decode_tlv(_data: &[u8]) -> Self::ReturnType {

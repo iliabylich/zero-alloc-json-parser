@@ -10,8 +10,8 @@ pub(crate) trait RewriteToTLV<'a> {
     ) -> Self::ReturnType;
 }
 
-pub(crate) trait DecodeTLV {
+pub(crate) trait DecodeTLV<'a> {
     type ReturnType;
 
-    fn decode_tlv(data: &[u8]) -> Self::ReturnType;
+    fn decode_tlv(data: &'a [u8]) -> Self::ReturnType;
 }

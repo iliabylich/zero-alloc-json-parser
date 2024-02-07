@@ -36,7 +36,7 @@ impl<'a> RewriteToTLV<'a> for NonHeaderByte {
     }
 }
 
-impl DecodeTLV for NonHeaderByte {
+impl DecodeTLV<'_> for NonHeaderByte {
     type ReturnType = (Self, Option<u8>);
 
     fn decode_tlv(data: &[u8]) -> (Self, Option<u8>) {

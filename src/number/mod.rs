@@ -55,7 +55,7 @@ impl RewriteToTLV<'_> for JsonNumberTLV {
     }
 }
 
-impl DecodeTLV for JsonNumberTLV {
+impl DecodeTLV<'_> for JsonNumberTLV {
     type ReturnType = Option<JsonNumber>;
 
     fn decode_tlv(data: &[u8]) -> Option<JsonNumber> {

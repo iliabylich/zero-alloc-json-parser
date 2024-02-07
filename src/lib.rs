@@ -3,6 +3,7 @@
 mod mask;
 mod number;
 mod parser;
+mod string;
 mod tlv;
 mod true_false_null;
 
