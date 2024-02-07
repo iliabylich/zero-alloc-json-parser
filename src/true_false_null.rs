@@ -14,22 +14,29 @@ impl RewriteToTLV for TrueFalseNull {
     type ExtraPayload = ();
     type ReturnType = ();
 
-    fn rewrite_to_tlv(data: &mut [u8], start: usize, end: usize, _: ()) {
-        let length = end - start;
-        if length == 5 {
-            // false
-            data[start] = FALSE_MASK;
-        } else if data[start] == b't' {
-            // true
-            data[start] = TRUE_MASK;
-        } else if data[start] == b'n' {
-            // null
-            data[start] = NULL_MASK;
+    fn rewrite_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+        let mut region_size = 0;
+        if data.get(0..4) == Some(b"true") {
+            data[0] = TRUE_MASK;
+            region_size = 4;
+        } else if data.get(0..5) == Some(b"false") {
+            data[0] = FALSE_MASK;
+            region_size = 5;
+        } else if data.get(0..4) == Some(b"null") {
+            data[0] = NULL_MASK;
+            region_size = 4;
         }
+
+        if region_size == 0 {
+            return None;
+        }
+
         // nullify the rest
-        for byte in data.iter_mut().skip(start + 1).take(end) {
+        for byte in data.iter_mut().skip(1).take(region_size - 1) {
             *byte = 0;
         }
+
+        Some(((), region_size))
     }
 }
 
@@ -49,8 +56,10 @@ impl DecodeTLV<'_> for TrueFalseNull {
 #[test]
 fn test_true() {
     let mut data = *b"true";
-    TrueFalseNull::rewrite_to_tlv(&mut data, 0, 4, ());
+    let (_, rewritten) = TrueFalseNull::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [TRUE_MASK, 0, 0, 0]);
+    assert_eq!(rewritten, 4);
+
     let (decoded, length) = TrueFalseNull::decode_tlv(&data).unwrap();
     assert_eq!(decoded, TrueFalseNull::True);
     assert_eq!(length, 4);
@@ -59,8 +68,10 @@ fn test_true() {
 #[test]
 fn test_false() {
     let mut data = *b"false";
-    TrueFalseNull::rewrite_to_tlv(&mut data, 0, 5, ());
+    let (_, rewritten) = TrueFalseNull::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [FALSE_MASK, 0, 0, 0, 0]);
+    assert_eq!(rewritten, 5);
+
     let (decoded, length) = TrueFalseNull::decode_tlv(&data).unwrap();
     assert_eq!(decoded, TrueFalseNull::False);
     assert_eq!(length, 5);
@@ -69,8 +80,10 @@ fn test_false() {
 #[test]
 fn test_null() {
     let mut data = *b"null";
-    TrueFalseNull::rewrite_to_tlv(&mut data, 0, 4, ());
+    let (_, rewritten) = TrueFalseNull::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [NULL_MASK, 0, 0, 0]);
+    assert_eq!(rewritten, 4);
+
     let (decoded, length) = TrueFalseNull::decode_tlv(&data).unwrap();
     assert_eq!(decoded, TrueFalseNull::Null);
     assert_eq!(length, 4);

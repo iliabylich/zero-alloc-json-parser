@@ -4,10 +4,8 @@ pub(crate) trait RewriteToTLV {
 
     fn rewrite_to_tlv(
         data: &mut [u8],
-        start: usize,
-        end: usize,
         extra: Self::ExtraPayload,
-    ) -> Self::ReturnType;
+    ) -> Option<(Self::ReturnType, usize)>;
 }
 
 pub(crate) trait DecodeTLV<'a> {

@@ -26,11 +26,28 @@ impl RewriteToTLV for String {
     type ExtraPayload = ();
     type ReturnType = ();
 
-    fn rewrite_to_tlv(data: &mut [u8], start: usize, mut end: usize, _: ()) {
-        let mut write_to = start + 1;
-        let mut read_from = start + 1;
+    fn rewrite_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+        if data[0] != b'"' {
+            return None;
+        }
+        let mut region_size = 1;
+        let mut found_end = false;
+        while region_size < data.len() {
+            if data[region_size] == b'"' {
+                found_end = true;
+                break;
+            } else {
+                region_size += 1;
+            }
+        }
+        if !found_end {
+            return None;
+        }
+        region_size += 1;
 
-        while read_from < end - 1 {
+        let mut write_to = 1;
+        let mut read_from = 1;
+        while read_from < region_size {
             if data[read_from] == b'\\' {
                 match data[read_from + 1] {
                     b'n' => {
@@ -73,37 +90,38 @@ impl RewriteToTLV for String {
                 write_to += 1;
             }
         }
-        write_to += 1; // track closing quote
 
-        for byte in data.iter_mut().skip(write_to).take(end - write_to) {
+        for byte in data.iter_mut().skip(write_to).take(region_size - write_to) {
             *byte = 0;
         }
-        end = write_to;
+        let end = write_to;
         data[end - 1] = b'"';
 
         // now we have a compact unescaped string with trailing zeroes
         // like "foobar"0000
-        //      ^ start
+        //       ^ start
         //              ^ end
 
-        let mut length = end - start - 2;
-        if length > 2048 {
+        let mut content_length = end - 2;
+        if content_length > 2048 {
             panic!("string is too long, max 2048 bytes allowed")
         }
 
-        if length <= MAX_EMBEDDED_LENGTH {
-            data[start] = STRING_MASK | length as u8;
+        if content_length <= MAX_EMBEDDED_LENGTH {
+            data[0] = STRING_MASK | content_length as u8;
             data[end - 1] = 0;
         } else {
             // long string, needs shifting
-            let three_bytes_of_length = (length % 8) as u8;
-            length >>= 3;
-            data[start] = STRING_MASK | LONG_STRING_MASK | three_bytes_of_length;
-            for idx in ((start + 1)..(end - 1)).rev() {
+            let three_bytes_of_length = (content_length % 8) as u8;
+            content_length >>= 3;
+            data[0] = STRING_MASK | LONG_STRING_MASK | three_bytes_of_length;
+            for idx in (1..(end - 1)).rev() {
                 data[idx + 1] = data[idx];
             }
-            data[start + 1] = length as u8;
+            data[1] = content_length as u8;
         }
+
+        Some(((), region_size))
     }
 }
 
@@ -130,8 +148,10 @@ impl<'a> DecodeTLV<'a> for String {
 #[test]
 fn test_string_short() {
     let mut data = *b"\"hello\"";
-    String::rewrite_to_tlv(&mut data, 0, 7, ());
+    let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [STRING_MASK | 5, b'h', b'e', b'l', b'l', b'o', 0]);
+    assert_eq!(rewritten, 7);
+
     let decoded = String::decode_tlv(&data).unwrap();
     assert_eq!(decoded, b"hello");
 }
@@ -139,7 +159,7 @@ fn test_string_short() {
 #[test]
 fn test_string_long() {
     let mut data = *b"\"abcdefghijklmnopqrstuvwxyz\"";
-    String::rewrite_to_tlv(&mut data, 0, 28, ());
+    let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(
         data,
         [
@@ -174,14 +194,16 @@ fn test_string_long() {
             b'z',
         ]
     );
+    assert_eq!(rewritten, 28);
+
     let decoded = String::decode_tlv(&data).unwrap();
     assert_eq!(decoded, b"abcdefghijklmnopqrstuvwxyz");
 }
 
 #[test]
 fn test_escaped() {
-    let mut data = *br#""a\nb\tc\u0064\\e"#;
-    String::rewrite_to_tlv(&mut data, 0, 18, ());
+    let mut data = *br#""a\nb\tc\u0064\\e""#;
+    let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(
         data,
         [
@@ -202,8 +224,11 @@ fn test_escaped() {
             0,
             0,
             0,
+            0,
         ]
     );
+    assert_eq!(rewritten, 18);
+
     let decoded = String::decode_tlv(&data).unwrap();
     assert_eq!(decoded, b"a\nb\tcd\\e");
 }

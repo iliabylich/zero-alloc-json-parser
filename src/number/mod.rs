@@ -42,17 +42,33 @@ impl RewriteToTLV for Number {
     type ExtraPayload = ();
     type ReturnType = ();
 
-    fn rewrite_to_tlv(data: &mut [u8], start: usize, end: usize, _: ()) {
-        let HeaderByte { multibyte, .. } = HeaderByte::rewrite_to_tlv(data, start, end, ());
+    fn rewrite_to_tlv(data: &mut [u8], _: ()) -> Option<(Self::ReturnType, usize)> {
+        let mut region_size = 0;
+        while region_size < data.len() {
+            if matches!(data[region_size], b'-' | b'0'..=b'9' | b'.' | b'e' | b'E') {
+                region_size += 1;
+            } else {
+                break;
+            }
+        }
+        if region_size == 0 {
+            return None;
+        }
+
+        let (HeaderByte { multibyte, .. }, _one_byte_written) =
+            HeaderByte::rewrite_to_tlv(data, region_size)?;
 
         if !multibyte {
-            return;
+            return Some(((), 1));
         }
-        let mut extra_length_to_write = end - start;
-        for idx in (start + 1)..end {
-            extra_length_to_write =
-                NonHeaderByte::rewrite_to_tlv(&mut data[idx..], 0, 0, extra_length_to_write);
+        let mut length_left_to_write = region_size;
+        for idx in 1..region_size {
+            let (length_left, _one_byte_written) =
+                NonHeaderByte::rewrite_to_tlv(&mut data[idx..], length_left_to_write)?;
+            length_left_to_write = length_left;
         }
+
+        Some(((), region_size))
     }
 }
 

@@ -18,27 +18,22 @@ impl RewriteToTLV for NonHeaderByte {
 
     type ReturnType = usize;
 
-    fn rewrite_to_tlv(
-        data: &mut [u8],
-        start: usize,
-        _end: usize,
-        mut length: usize,
-    ) -> Self::ReturnType {
+    fn rewrite_to_tlv(data: &mut [u8], mut length: usize) -> Option<(Self::ReturnType, usize)> {
         let length_component = if length == 0 {
             0
         } else {
             ((length % (2 << 3)) << 4) as u8 | HAS_LENGTH_MASK
         };
         length >>= 3;
-        let value_component = match data[start] {
+        let value_component = match data[0] {
             b'-' => MINUS,
             b'e' => EXPONENT,
             b'.' => DOT,
-            b'0'..=b'9' => data[start] - b'0',
+            b'0'..=b'9' => data[0] - b'0',
             _ => panic!("invalid number"),
         };
-        data[start] = length_component | value_component;
-        length
+        data[0] = length_component | value_component;
+        Some((length, 1))
     }
 }
 

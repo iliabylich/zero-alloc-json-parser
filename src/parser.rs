@@ -9,10 +9,8 @@ impl RewriteToTLV for Parser {
 
     fn rewrite_to_tlv(
         _data: &mut [u8],
-        _start: usize,
-        _end: usize,
         _extra: Self::ExtraPayload,
-    ) -> Self::ReturnType {
+    ) -> Option<(Self::ReturnType, usize)> {
         todo!()
     }
 }

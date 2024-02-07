@@ -12,31 +12,36 @@ pub(crate) struct HeaderByte {
 }
 
 impl RewriteToTLV for HeaderByte {
-    type ExtraPayload = ();
+    type ExtraPayload = usize;
     type ReturnType = Self;
 
-    fn rewrite_to_tlv(data: &mut [u8], start: usize, end: usize, _: ()) -> Self {
-        let length = end - start;
+    fn rewrite_to_tlv(data: &mut [u8], length: usize) -> Option<(Self::ReturnType, usize)> {
         if length == 1 {
-            let header_byte = NUMBER_MASK | (data[start] - b'0');
-            data[start] = header_byte;
-            return Self {
-                multibyte: false,
-                char: header_byte,
-            };
+            let header_byte = NUMBER_MASK | (data[0] - b'0');
+            data[0] = header_byte;
+            return Some((
+                Self {
+                    multibyte: false,
+                    char: header_byte,
+                },
+                1,
+            ));
         }
 
-        let value_component = match data[start] {
+        let value_component = match data[0] {
             b'-' => MINUS,
-            b'0'..=b'9' => data[start] - b'0',
+            b'0'..=b'9' => data[0] - b'0',
             _ => panic!("invalid number"),
         };
         let header_byte = NUMBER_MASK | MULTIBYTE | value_component;
-        data[start] = header_byte;
-        Self {
-            multibyte: true,
-            char: header_byte,
-        }
+        data[0] = header_byte;
+        Some((
+            Self {
+                multibyte: true,
+                char: header_byte,
+            },
+            1,
+        ))
     }
 }
 

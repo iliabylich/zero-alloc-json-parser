@@ -6,39 +6,47 @@ use crate::{
 #[test]
 fn test_0() {
     let mut data = *b"0";
-    Number::rewrite_to_tlv(&mut data, 0, 1, ());
+    let (_, rewritten) = Number::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [0b001_00000]);
+    assert_eq!(rewritten, 1);
+
     assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(0)));
 }
 
 #[test]
 fn test_1() {
     let mut data = *b"1";
-    Number::rewrite_to_tlv(&mut data, 0, 1, ());
+    let (_, rewritten) = Number::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [0b001_00001]);
+    assert_eq!(rewritten, 1);
+
     assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(1)));
 }
 
 #[test]
 fn test_9() {
     let mut data = *b"9";
-    Number::rewrite_to_tlv(&mut data, 0, 1, ());
+    let (_, rewritten) = Number::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [0b001_01001]);
+    assert_eq!(rewritten, 1);
+
     assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(9)));
 }
 
 #[test]
 fn test_69() {
     let mut data = *b"69";
-    Number::rewrite_to_tlv(&mut data, 0, 2, ());
+    let (_, rewritten) = Number::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(data, [0b001_10110, 0b1010_1001]);
+    assert_eq!(rewritten, 2);
+
     assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(69)));
 }
 
 #[test]
 fn test_1234567890987654321() {
     let mut data = *b"1234567890987654321"; // 19 bytes = 0b10_011
-    Number::rewrite_to_tlv(&mut data, 0, 19, ());
+    let (_, rewritten) = Number::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(
         data,
         [
@@ -63,6 +71,8 @@ fn test_1234567890987654321() {
             0b0000_0001, // 0b0000 = length, value = 1
         ]
     );
+    assert_eq!(rewritten, 19);
+
     assert_eq!(
         Number::decode_tlv(&data),
         Some(IntOrFloat::Integer(1234567890987654321))
@@ -72,7 +82,7 @@ fn test_1234567890987654321() {
 #[test]
 fn test_minus_1() {
     let mut data = *b"-1"; // length = 2 = b10
-    Number::rewrite_to_tlv(&mut data, 0, 2, ());
+    let (_, rewritten) = Number::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(
         data,
         [
@@ -80,13 +90,15 @@ fn test_minus_1() {
             0b1010_0001, // 0010 = length = 2, value = 1
         ]
     );
+    assert_eq!(rewritten, 2);
+
     assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Integer(-1)));
 }
 
 #[test]
 fn test_two_point_three() {
     let mut data = *b"2.3"; // length = 3 = 0b11
-    Number::rewrite_to_tlv(&mut data, 0, 3, ());
+    let (_, rewritten) = Number::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(
         data,
         [
@@ -95,5 +107,7 @@ fn test_two_point_three() {
             0b0000_0011, // 0000 = length = 0, value = 3
         ]
     );
+    assert_eq!(rewritten, 3);
+
     assert_eq!(Number::decode_tlv(&data), Some(IntOrFloat::Float(2.3)));
 }
