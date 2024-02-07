@@ -29,7 +29,7 @@ pub struct ObjectIterator<'a> {
 }
 
 impl<'a> Iterator for ObjectIterator<'a> {
-    type Item = (&'a str, Value<'a>);
+    type Item = (&'a [u8], Value<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.data = skip_zeroes(self.data);

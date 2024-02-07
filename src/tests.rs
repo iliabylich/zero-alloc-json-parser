@@ -1,8 +1,8 @@
-use std::{fmt::Write, string};
+extern crate std;
+
+use std::{fmt::Write, string::String};
 
 use crate::{value::Value, Parser};
-
-extern crate std;
 
 #[test]
 fn test_parser() {
@@ -37,7 +37,7 @@ fn visit_and_encode(something: Value, out: &mut String) -> Result<(), std::fmt::
         Value::Object(object) => {
             write!(out, "{{")?;
             for (key, value) in object.iter() {
-                write!(out, "\"{}\": ", key)?;
+                write!(out, "\"{}\": ", std::str::from_utf8(key).unwrap())?;
                 visit_and_encode(value, out)?;
                 write!(out, ", ")?;
             }
@@ -52,7 +52,7 @@ fn visit_and_encode(something: Value, out: &mut String) -> Result<(), std::fmt::
             write!(out, "]")?;
         }
         Value::String(string) => {
-            write!(out, "\"{}\"", string)?;
+            write!(out, "\"{}\"", std::str::from_utf8(string).unwrap())?;
         }
         Value::Integer(int) => {
             write!(out, "{}", int)?;

@@ -98,7 +98,7 @@ impl RewriteToTLV for String {
 }
 
 impl<'a> DecodeTLV<'a> for String {
-    type ReturnType = &'a str;
+    type ReturnType = &'a [u8];
 
     fn decode_tlv(data: &'a [u8]) -> Option<(Self::ReturnType, usize)> {
         if data.is_empty() {
@@ -110,7 +110,7 @@ impl<'a> DecodeTLV<'a> for String {
 
         let Bytesize { bytesize, offset } = Bytesize::read(data);
         let bytes = &data[offset..(offset + bytesize)];
-        Some((std::str::from_utf8(bytes).unwrap(), bytesize + offset))
+        Some((bytes, bytesize + offset))
     }
 }
 
@@ -122,7 +122,7 @@ fn test_string_empty() {
     assert_eq!(rewritten, 2);
 
     let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, "");
+    assert_eq!(decoded, b"");
     assert_eq!(read, 1);
 }
 
@@ -134,7 +134,7 @@ fn test_string_short() {
     assert_eq!(rewritten, 7);
 
     let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, "hello");
+    assert_eq!(decoded, b"hello");
     assert_eq!(read, 6);
 }
 
@@ -181,7 +181,7 @@ fn test_string_long() {
     assert_eq!(rewritten, 28);
 
     let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, "abcdefghijklmnopqrstuvwxyz");
+    assert_eq!(decoded, b"abcdefghijklmnopqrstuvwxyz");
     assert_eq!(read, 28);
 }
 
@@ -215,6 +215,6 @@ fn test_escaped() {
     assert_eq!(rewritten, 18);
 
     let (decoded, read) = String::decode_tlv(&data).unwrap();
-    assert_eq!(decoded, "a\nb\tcd\\e");
+    assert_eq!(decoded, b"a\nb\tcd\\e");
     assert_eq!(read, 9);
 }

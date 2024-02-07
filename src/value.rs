@@ -13,7 +13,7 @@ use crate::{
 pub enum Value<'a> {
     Object(Object<'a>),
     Array(Array<'a>),
-    String(&'a str),
+    String(&'a [u8]),
     Integer(i64),
     Float(f64),
     True,
@@ -37,7 +37,7 @@ impl RewriteToTLV for Value<'_> {
             Array::rewrite_to_tlv(data, ())
         } else if data[0] == b'"' {
             String::rewrite_to_tlv(data, ())
-        } else if data[0] == b'-' || matches!(data[0], b'0'..=b'9') {
+        } else if data[0] == b'-' || data[0].is_ascii_digit() {
             Number::rewrite_to_tlv(data, ())
         } else if data[0] == b't' || data[0] == b'f' || data[0] == b'n' {
             TrueFalseNull::rewrite_to_tlv(data, ())

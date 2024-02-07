@@ -14,10 +14,10 @@ pub struct Object<'a> {
 
 #[derive(Debug)]
 enum State {
-    ReadingKey,
-    ReadingValue,
-    ReadingColon,
-    ReadingCommaOrEnd,
+    Key,
+    Value,
+    Colon,
+    CommaOrEnd,
 }
 
 impl RewriteToTLV for Object<'_> {
@@ -31,7 +31,7 @@ impl RewriteToTLV for Object<'_> {
         }
         let mut region_size = 1;
         let mut found_end = false;
-        let mut state = State::ReadingKey;
+        let mut state = State::Key;
         let mut seen_comma = false;
 
         while region_size < data.len() {
@@ -40,42 +40,42 @@ impl RewriteToTLV for Object<'_> {
             }
 
             match state {
-                State::ReadingKey => {
+                State::Key => {
                     if let Some((_, len)) = String::rewrite_to_tlv(&mut data[region_size..], ()) {
-                        state = State::ReadingColon;
+                        state = State::Colon;
                         region_size += len;
                     } else if seen_comma {
                         // parse error
                         return None;
                     } else {
                         // empty object
-                        state = State::ReadingCommaOrEnd;
+                        state = State::CommaOrEnd;
                         continue;
                     }
                 }
-                State::ReadingValue => {
+                State::Value => {
                     if let Some((_, len)) = Value::rewrite_to_tlv(&mut data[region_size..], ()) {
-                        state = State::ReadingCommaOrEnd;
+                        state = State::CommaOrEnd;
                         region_size += len;
                     } else {
                         return None;
                     }
                 }
-                State::ReadingColon => {
+                State::Colon => {
                     if data[region_size] == b':' {
-                        state = State::ReadingValue;
+                        state = State::Value;
                         data[region_size] = 0;
                         region_size += 1;
                     } else {
                         return None;
                     }
                 }
-                State::ReadingCommaOrEnd => {
+                State::CommaOrEnd => {
                     if data[region_size] == b'}' {
                         found_end = true;
                         break;
                     } else if data[region_size] == b',' {
-                        state = State::ReadingKey;
+                        state = State::Key;
                         data[region_size] = 0;
                         region_size += 1;
                         seen_comma = true;
