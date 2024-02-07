@@ -12,6 +12,8 @@ use non_header_byte::NonHeaderByte;
 
 use crate::tlv::{BitmixToTLV, DecodeTLV};
 
+use self::non_header_byte::{NonHeaderByteChar, NonHeaderByteReadResult};
+
 //
 // format: 000YVVVV where:
 //   1. 000 - 3 bits for variant
@@ -62,9 +64,8 @@ impl BitmixToTLV for Number {
         }
         let mut length_left_to_write = region_size;
         for idx in 1..region_size {
-            let (length_left, _one_byte_written) =
-                NonHeaderByte::bitmix_to_tlv(&mut data[idx..], length_left_to_write)?;
-            length_left_to_write = length_left;
+            length_left_to_write =
+                NonHeaderByte::write(&mut data[idx..], length_left_to_write).length_left;
         }
 
         Some(((), region_size))
@@ -103,25 +104,25 @@ impl DecodeTLV<'_> for Number {
         let mut read_total = 1;
 
         loop {
-            let (byte, read) = NonHeaderByte::decode_tlv(&data[idx..]).unwrap();
-            read_total += read;
+            let NonHeaderByteReadResult { length_part, char } = NonHeaderByte::read(&data[idx..]);
+            read_total += 1;
 
-            if let Some(l) = byte.length_part() {
+            if let Some(l) = length_part {
                 length |= (l as usize) << (3 * (idx - 1));
             }
 
-            match byte {
-                NonHeaderByte::Minus { .. } => {
+            match char {
+                NonHeaderByteChar::Minus { .. } => {
                     negative = true;
                 }
-                NonHeaderByte::Exponent { .. } => {
+                NonHeaderByteChar::Exponent { .. } => {
                     panic!("exponents are not supported yet")
                 }
-                NonHeaderByte::Dot { .. } => {
+                NonHeaderByteChar::Dot { .. } => {
                     result = result.make_float();
                     seen_dot = true;
                 }
-                NonHeaderByte::Digit { char, .. } => {
+                NonHeaderByteChar::Digit { char, .. } => {
                     result = result.add(char - b'0');
                     if seen_dot {
                         digits_after_dot += 1;
