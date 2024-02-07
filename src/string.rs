@@ -1,15 +1,8 @@
 use crate::{
+    length::Length,
     mask::STRING_MASK,
     tlv::{DecodeTLV, RewriteToTLV},
 };
-
-// We have 5 bytes after the initial mask, 0b11111 is the max value for 5 bits
-//   1 in a leading bit indicates a two-byte length,
-//   0 means a single byte length (i.e. out string is VERY short, max 0b1111 = 15 bytes)
-// If the string is longer than 15 bytes, we need to shift it to the right
-// and use one extra byte to store the length of the string
-const MAX_EMBEDDED_LENGTH: usize = 15;
-const LONG_STRING_MASK: u8 = 0b10000;
 
 pub(crate) struct String;
 
@@ -97,29 +90,8 @@ impl RewriteToTLV for String {
         let end = write_to;
         data[end - 1] = b'"';
 
-        // now we have a compact unescaped string with trailing zeroes
-        // like "foobar"0000
-        //       ^ start
-        //              ^ end
-
-        let mut content_length = end - 2;
-        if content_length > 2048 {
-            panic!("string is too long, max 2048 bytes allowed")
-        }
-
-        if content_length <= MAX_EMBEDDED_LENGTH {
-            data[0] = STRING_MASK | content_length as u8;
-            data[end - 1] = 0;
-        } else {
-            // long string, needs shifting
-            let three_bytes_of_length = (content_length % 8) as u8;
-            content_length >>= 3;
-            data[0] = STRING_MASK | LONG_STRING_MASK | three_bytes_of_length;
-            for idx in (1..(end - 1)).rev() {
-                data[idx + 1] = data[idx];
-            }
-            data[1] = content_length as u8;
-        }
+        Length::write(&mut data[..end]);
+        data[0] |= STRING_MASK;
 
         Some(((), region_size))
     }
@@ -133,14 +105,7 @@ impl<'a> DecodeTLV<'a> for String {
             return None;
         }
 
-        let l1 = data[0] & 0b1111;
-        let mut l2 = 0;
-        let mut offset = 1;
-        if data[0] & LONG_STRING_MASK == LONG_STRING_MASK {
-            l2 = data[1];
-            offset = 2;
-        }
-        let length = (l2 as usize) << 3 | l1 as usize;
+        let Length { length, offset } = Length::read(data);
         Some((&data[offset..(offset + length)], length + offset))
     }
 }
@@ -159,14 +124,16 @@ fn test_string_short() {
 
 #[test]
 fn test_string_long() {
+    use crate::length::LONG_CONTAINER_MASK;
+
     let mut data = *b"\"abcdefghijklmnopqrstuvwxyz\"";
     let (_, rewritten) = String::rewrite_to_tlv(&mut data, ()).unwrap();
     assert_eq!(
         data,
         [
             // length is 26 = 0b11010
-            STRING_MASK | LONG_STRING_MASK | 0b010, // 3 trailing bits of length
-            0b11,                                   // the rest of the length
+            STRING_MASK | LONG_CONTAINER_MASK | 0b010, // 3 trailing bits of length
+            0b11,                                      // the rest of the length
             b'a',
             b'b',
             b'c',
