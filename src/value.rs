@@ -22,9 +22,7 @@ pub enum Value<'a> {
 }
 
 impl BitmixToTLV for Value<'_> {
-    type ReturnType = ();
-
-    fn bitmix_to_tlv(mut data: &mut [u8]) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(mut data: &mut [u8]) -> Option<usize> {
         if let Some(len) = scan_ws(data) {
             data = &mut data[len..];
         }
@@ -97,6 +95,6 @@ fn test_value() {
         "h": null
     }"#;
 
-    let (_, rewritten) = Value::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Value::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(rewritten, data.len());
 }

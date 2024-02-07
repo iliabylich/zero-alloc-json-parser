@@ -41,9 +41,7 @@ pub(crate) const VALUE_MASK: u8 = 0b0000_1111;
 pub(crate) struct Number;
 
 impl BitmixToTLV for Number {
-    type ReturnType = ();
-
-    fn bitmix_to_tlv(data: &mut [u8]) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize> {
         let mut region_size = 0;
         while region_size < data.len() {
             if matches!(data[region_size], b'-' | b'0'..=b'9' | b'.' | b'e' | b'E') {
@@ -59,7 +57,7 @@ impl BitmixToTLV for Number {
         let header = HeaderByte::write(data, region_size)?;
 
         if !header.multibyte {
-            return Some(((), 1));
+            return Some(1);
         }
         let mut length_left_to_write = region_size;
         for idx in 1..region_size {
@@ -67,7 +65,7 @@ impl BitmixToTLV for Number {
                 NonHeaderByte::write(&mut data[idx..], length_left_to_write).length_left;
         }
 
-        Some(((), region_size))
+        Some(region_size)
     }
 }
 

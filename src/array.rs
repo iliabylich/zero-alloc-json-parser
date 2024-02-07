@@ -12,9 +12,7 @@ pub struct Array<'a> {
 }
 
 impl BitmixToTLV for Array<'_> {
-    type ReturnType = ();
-
-    fn bitmix_to_tlv(data: &mut [u8]) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize> {
         if data[0] != b'[' {
             return None;
         }
@@ -30,7 +28,7 @@ impl BitmixToTLV for Array<'_> {
                 region_size += 1;
             } else if let Some(skip_len) = scan_ws(&mut data[region_size..]) {
                 region_size += skip_len;
-            } else if let Some((_, len)) = Value::bitmix_to_tlv(&mut data[region_size..]) {
+            } else if let Some(len) = Value::bitmix_to_tlv(&mut data[region_size..]) {
                 region_size += len;
             } else {
                 return None;
@@ -47,7 +45,7 @@ impl BitmixToTLV for Array<'_> {
         Bytesize::write(&mut data[..region_size], region_size - 2);
         data[0] |= ARRAY_MASK;
 
-        Some(((), region_size))
+        Some(region_size)
     }
 }
 
@@ -73,7 +71,7 @@ impl<'a> DecodeTLV<'a> for Array<'a> {
 #[test]
 fn test_array_empty() {
     let mut data = *b"[]";
-    let ((), rewritten) = Array::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Array::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(rewritten, 2);
     assert_eq!(data, [ARRAY_MASK | 0, 0]);
 
@@ -84,7 +82,7 @@ fn test_array_empty() {
 #[test]
 fn test_array_short() {
     let mut data = *b"[1, 2, 3]";
-    let ((), rewritten) = Array::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Array::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(rewritten, 9);
     assert_eq!(
         data,
@@ -107,7 +105,7 @@ fn test_array_long() {
     use crate::bytesize::LONG_CONTAINER_MASK;
 
     let mut data = *b"[1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2]";
-    let ((), rewritten) = Array::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Array::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(rewritten, 48);
     assert_eq!(
         data,

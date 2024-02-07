@@ -6,7 +6,7 @@ use crate::{
 #[test]
 fn test_0() {
     let mut data = *b"0";
-    let (_, rewritten) = Number::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Number::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(data, [0b001_00000]);
     assert_eq!(rewritten, 1);
 
@@ -18,7 +18,7 @@ fn test_0() {
 #[test]
 fn test_1() {
     let mut data = *b"1";
-    let (_, rewritten) = Number::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Number::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(data, [0b001_00001]);
     assert_eq!(rewritten, 1);
 
@@ -30,7 +30,7 @@ fn test_1() {
 #[test]
 fn test_9() {
     let mut data = *b"9";
-    let (_, rewritten) = Number::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Number::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(data, [0b001_01001]);
     assert_eq!(rewritten, 1);
 
@@ -42,7 +42,7 @@ fn test_9() {
 #[test]
 fn test_69() {
     let mut data = *b"69";
-    let (_, rewritten) = Number::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Number::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(data, [0b001_10110, 0b1010_1001]);
     assert_eq!(rewritten, 2);
 
@@ -54,7 +54,7 @@ fn test_69() {
 #[test]
 fn test_1234567890987654321() {
     let mut data = *b"1234567890987654321"; // 19 bytes = 0b10_011
-    let (_, rewritten) = Number::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Number::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(
         data,
         [
@@ -89,7 +89,7 @@ fn test_1234567890987654321() {
 #[test]
 fn test_minus_1() {
     let mut data = *b"-1"; // length = 2 = b10
-    let (_, rewritten) = Number::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Number::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(
         data,
         [
@@ -107,7 +107,7 @@ fn test_minus_1() {
 #[test]
 fn test_two_point_three() {
     let mut data = *b"2.3"; // length = 3 = 0b11
-    let (_, rewritten) = Number::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Number::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(
         data,
         [

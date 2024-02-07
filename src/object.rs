@@ -21,9 +21,7 @@ enum State {
 }
 
 impl BitmixToTLV for Object<'_> {
-    type ReturnType = ();
-
-    fn bitmix_to_tlv(data: &mut [u8]) -> Option<(Self::ReturnType, usize)> {
+    fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize> {
         if data[0] != b'{' {
             return None;
         }
@@ -39,7 +37,7 @@ impl BitmixToTLV for Object<'_> {
 
             match state {
                 State::Key => {
-                    if let Some((_, len)) = String::bitmix_to_tlv(&mut data[region_size..]) {
+                    if let Some(len) = String::bitmix_to_tlv(&mut data[region_size..]) {
                         state = State::Colon;
                         region_size += len;
                     } else if seen_comma {
@@ -52,7 +50,7 @@ impl BitmixToTLV for Object<'_> {
                     }
                 }
                 State::Value => {
-                    if let Some((_, len)) = Value::bitmix_to_tlv(&mut data[region_size..]) {
+                    if let Some(len) = Value::bitmix_to_tlv(&mut data[region_size..]) {
                         state = State::CommaOrEnd;
                         region_size += len;
                     } else {
@@ -94,7 +92,7 @@ impl BitmixToTLV for Object<'_> {
         Bytesize::write(&mut data[..region_size], region_size - 2);
         data[0] |= OBJECT_MASK;
 
-        Some(((), region_size))
+        Some(region_size)
     }
 }
 
@@ -120,7 +118,7 @@ impl<'a> DecodeTLV<'a> for Object<'a> {
 #[test]
 fn test_object_empty() {
     let mut data = *b"{}";
-    let ((), rewritten) = Object::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Object::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(rewritten, 2);
     assert_eq!(data, [OBJECT_MASK | 0, 0]);
 }
@@ -130,7 +128,7 @@ fn test_object_small() {
     use crate::mask::STRING_MASK;
 
     let mut data = *br#"{"a": 1, "b": 2}"#;
-    let ((), rewritten) = Object::bitmix_to_tlv(&mut data).unwrap();
+    let rewritten = Object::bitmix_to_tlv(&mut data).unwrap();
     assert_eq!(rewritten, 16);
     assert_eq!(
         data,

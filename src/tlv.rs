@@ -1,7 +1,5 @@
 pub(crate) trait BitmixToTLV {
-    type ReturnType;
-
-    fn bitmix_to_tlv(data: &mut [u8]) -> Option<(Self::ReturnType, usize)>;
+    fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize>;
 }
 
 pub(crate) trait DecodeTLV<'a> {
