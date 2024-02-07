@@ -4,25 +4,27 @@ pub(crate) enum IntOrFloat {
     Float(f64),
 }
 
+use IntOrFloat::*;
+
 impl IntOrFloat {
     pub(crate) fn add(self, digit: u8) -> Self {
         match self {
-            Self::Integer(value) => Self::Integer(value * 10 + (digit as i64)),
-            Self::Float(value) => Self::Float(value * 10.0 + (digit as f64)),
+            Integer(value) => Integer(value * 10 + (digit as i64)),
+            Float(value) => Float(value * 10.0 + (digit as f64)),
         }
     }
 
     pub(crate) fn make_float(self) -> Self {
         match self {
-            Self::Integer(value) => Self::Float(value as f64),
-            Self::Float(_) => panic!("internal error, double dot?"),
+            Integer(value) => Float(value as f64),
+            Float(_) => panic!("internal error, double dot?"),
         }
     }
 
     pub(crate) fn negate(self) -> Self {
         match self {
-            Self::Integer(value) => Self::Integer(-value),
-            Self::Float(value) => Self::Float(-value),
+            Integer(value) => Integer(-value),
+            Float(value) => Float(-value),
         }
     }
 }
