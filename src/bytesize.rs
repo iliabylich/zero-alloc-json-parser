@@ -13,31 +13,31 @@ pub(crate) struct Bytesize {
 }
 
 impl Bytesize {
-    pub(crate) fn write(data: &mut [u8], bytesize: usize) {
+    pub(crate) fn write(data: &mut [u8], start: usize, end: usize, bytesize: usize) {
         if bytesize > 2048 {
             panic!("container is too long, max 2048 bytes allowed")
         }
         let bytesize = bytesize as u8;
 
         if bytesize <= MAX_EMBEDDED_BYTESIZE {
-            data[0] = bytesize;
-            data[data.len() - 1] = 0;
+            data[start] = bytesize;
+            data[end - 1] = 0;
         } else {
             // long container, needs shifting
-            data[0] = LONG_CONTAINER_MASK | (bytesize % 8);
-            for idx in (1..(data.len() - 1)).rev() {
+            data[start] = LONG_CONTAINER_MASK | (bytesize % 8);
+            for idx in ((start + 1)..(end - 1)).rev() {
                 data[idx + 1] = data[idx];
             }
-            data[1] = bytesize >> 3;
+            data[start + 1] = bytesize >> 3;
         }
     }
 
-    pub(crate) fn read(data: &[u8]) -> Self {
-        let l1 = data[0] & 0b1111;
+    pub(crate) fn read(data: &[u8], pos: usize) -> Self {
+        let l1 = data[pos] & 0b1111;
         let mut l2 = 0;
         let mut offset = 1;
-        if data[0] & LONG_CONTAINER_MASK == LONG_CONTAINER_MASK {
-            l2 = data[1];
+        if data[pos] & LONG_CONTAINER_MASK == LONG_CONTAINER_MASK {
+            l2 = data[pos + 1];
             offset = 2;
         }
         let bytesize = (l2 as usize) << 3 | l1 as usize;

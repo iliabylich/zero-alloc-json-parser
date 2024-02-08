@@ -10,7 +10,7 @@ use header_byte::HeaderByte;
 mod non_header_byte;
 use non_header_byte::NonHeaderByte;
 
-use crate::tlv::{BitmixToTLV, DecodeTLV, DecodingResult};
+use crate::tlv::{BitmixToTLV, DecodeTLV};
 
 use self::non_header_byte::{NonHeaderByteChar, NonHeaderByteReadResult};
 
@@ -41,10 +41,13 @@ pub(crate) const VALUE_MASK: u8 = 0b0000_1111;
 pub(crate) struct Number;
 
 impl BitmixToTLV for Number {
-    fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize> {
+    fn bitmix_to_tlv(data: &mut [u8], pos: &mut usize) -> Option<()> {
         let mut region_size = 0;
-        while region_size < data.len() {
-            if matches!(data[region_size], b'-' | b'0'..=b'9' | b'.' | b'e' | b'E') {
+        while region_size + *pos < data.len() {
+            if matches!(
+                data[region_size + *pos],
+                b'-' | b'0'..=b'9' | b'.' | b'e' | b'E'
+            ) {
                 region_size += 1;
             } else {
                 break;
@@ -54,36 +57,36 @@ impl BitmixToTLV for Number {
             return None;
         }
 
-        let header = HeaderByte::write(data, region_size)?;
+        let header = HeaderByte::write(data, *pos, region_size)?;
 
         if !header.multibyte {
-            return Some(1);
+            *pos += 1;
+            return Some(());
         }
         let mut length_left_to_write = region_size;
         for idx in 1..region_size {
             length_left_to_write =
-                NonHeaderByte::write(&mut data[idx..], length_left_to_write).length_left;
+                NonHeaderByte::write(data, *pos + idx, length_left_to_write).length_left;
         }
 
-        Some(region_size)
+        *pos += region_size;
+        Some(())
     }
 }
 
 impl DecodeTLV<'_> for Number {
     type ReturnType = IntOrFloat;
 
-    fn decode_tlv(data: &[u8]) -> Option<DecodingResult<Self::ReturnType>> {
-        if data.is_empty() {
+    fn decode_tlv(data: &[u8], pos: &mut usize) -> Option<Self::ReturnType> {
+        if *pos >= data.len() {
             return None;
         }
 
-        let header = HeaderByte::read(data)?;
+        let header: header_byte::HeaderByteReadResult = HeaderByte::read(data, *pos)?;
 
         if !header.multibyte {
-            return Some(DecodingResult {
-                value: IntOrFloat::Integer((header.char - b'0') as i64),
-                size: 1,
-            });
+            *pos += 1;
+            return Some(IntOrFloat::Integer((header.char - b'0') as i64));
         }
 
         let mut negative;
@@ -104,7 +107,8 @@ impl DecodeTLV<'_> for Number {
         let mut read_total = 1;
 
         loop {
-            let NonHeaderByteReadResult { length_part, char } = NonHeaderByte::read(&data[idx..]);
+            let NonHeaderByteReadResult { length_part, char } =
+                NonHeaderByte::read(data, *pos + idx);
             read_total += 1;
 
             if let Some(l) = length_part {
@@ -148,9 +152,7 @@ impl DecodeTLV<'_> for Number {
             };
         }
 
-        Some(DecodingResult {
-            value: result,
-            size: read_total,
-        })
+        *pos += read_total;
+        Some(result)
     }
 }

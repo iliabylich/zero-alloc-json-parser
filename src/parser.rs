@@ -7,7 +7,10 @@ pub struct Parser;
 
 impl Parser {
     pub fn parse(data: &mut [u8]) -> Option<Value<'_>> {
-        Value::bitmix_to_tlv(data)?;
-        Some(Value::decode_tlv(data)?.value)
+        let mut pos = 0;
+        Value::bitmix_to_tlv(data, &mut pos)?;
+
+        pos = 0;
+        Value::decode_tlv(data, &mut pos)
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     mask::{FALSE_MASK, NULL_MASK, TRUE_MASK},
-    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
+    tlv::{BitmixToTLV, DecodeTLV},
 };
 
 #[derive(Debug, PartialEq)]
@@ -11,52 +11,51 @@ pub(crate) enum TrueFalseNull {
 }
 
 impl BitmixToTLV for TrueFalseNull {
-    fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize> {
-        let mut region_size = 0;
-        if data.get(0..4) == Some(b"true") {
-            data[0] = TRUE_MASK;
-            region_size = 4;
-        } else if data.get(0..5) == Some(b"false") {
-            data[0] = FALSE_MASK;
-            region_size = 5;
-        } else if data.get(0..4) == Some(b"null") {
-            data[0] = NULL_MASK;
-            region_size = 4;
-        }
-
-        if region_size == 0 {
+    fn bitmix_to_tlv(data: &mut [u8], pos: &mut usize) -> Option<()> {
+        let region_size = if data.get(*pos..*pos + 4) == Some(b"true") {
+            data[*pos] = TRUE_MASK;
+            4
+        } else if data.get(*pos..*pos + 5) == Some(b"false") {
+            data[*pos] = FALSE_MASK;
+            5
+        } else if data.get(*pos..*pos + 4) == Some(b"null") {
+            data[*pos] = NULL_MASK;
+            4
+        } else {
             return None;
-        }
+        };
 
         // nullify the rest
-        for byte in data.iter_mut().skip(1).take(region_size - 1) {
-            *byte = 0;
-        }
+        data.iter_mut()
+            .skip(*pos + 1)
+            .take(region_size - 1)
+            .for_each(|byte| *byte = 0);
 
-        Some(region_size)
+        *pos += region_size;
+        Some(())
     }
 }
 
 impl DecodeTLV<'_> for TrueFalseNull {
     type ReturnType = Self;
 
-    fn decode_tlv(data: &[u8]) -> Option<DecodingResult<Self::ReturnType>> {
-        if data.is_empty() {
+    fn decode_tlv(data: &[u8], pos: &mut usize) -> Option<Self::ReturnType> {
+        if *pos >= data.len() {
             return None;
         }
-        match data[0] {
-            TRUE_MASK => Some(DecodingResult {
-                value: Self::True,
-                size: 4,
-            }),
-            FALSE_MASK => Some(DecodingResult {
-                value: Self::False,
-                size: 5,
-            }),
-            NULL_MASK => Some(DecodingResult {
-                value: Self::Null,
-                size: 4,
-            }),
+        match data[*pos] {
+            TRUE_MASK => {
+                *pos += 4;
+                Some(Self::True)
+            }
+            FALSE_MASK => {
+                *pos += 5;
+                Some(Self::False)
+            }
+            NULL_MASK => {
+                *pos += 4;
+                Some(Self::Null)
+            }
             _ => None,
         }
     }
@@ -64,36 +63,42 @@ impl DecodeTLV<'_> for TrueFalseNull {
 
 #[test]
 fn test_true() {
-    let mut data = *b"true";
-    let rewritten = TrueFalseNull::bitmix_to_tlv(&mut data).unwrap();
-    assert_eq!(data, [TRUE_MASK, 0, 0, 0]);
-    assert_eq!(rewritten, 4);
+    let mut pos = 1;
+    let mut data = *b" true";
+    TrueFalseNull::bitmix_to_tlv(&mut data, &mut pos).unwrap();
+    assert_eq!(pos, 5);
+    assert_eq!(data, [b' ', TRUE_MASK, 0, 0, 0]);
 
-    let DecodingResult { value, size } = TrueFalseNull::decode_tlv(&data).unwrap();
+    pos = 1;
+    let value = TrueFalseNull::decode_tlv(&data, &mut pos).unwrap();
+    assert_eq!(pos, 5);
     assert_eq!(value, TrueFalseNull::True);
-    assert_eq!(size, 4);
 }
 
 #[test]
 fn test_false() {
-    let mut data = *b"false";
-    let rewritten = TrueFalseNull::bitmix_to_tlv(&mut data).unwrap();
-    assert_eq!(data, [FALSE_MASK, 0, 0, 0, 0]);
-    assert_eq!(rewritten, 5);
+    let mut pos = 1;
+    let mut data = *b" false";
+    TrueFalseNull::bitmix_to_tlv(&mut data, &mut pos).unwrap();
+    assert_eq!(pos, 6);
+    assert_eq!(data, [b' ', FALSE_MASK, 0, 0, 0, 0]);
 
-    let DecodingResult { value, size } = TrueFalseNull::decode_tlv(&data).unwrap();
+    pos = 1;
+    let value = TrueFalseNull::decode_tlv(&data, &mut pos).unwrap();
+    assert_eq!(pos, 6);
     assert_eq!(value, TrueFalseNull::False);
-    assert_eq!(size, 5);
 }
 
 #[test]
 fn test_null() {
-    let mut data = *b"null";
-    let rewritten = TrueFalseNull::bitmix_to_tlv(&mut data).unwrap();
-    assert_eq!(data, [NULL_MASK, 0, 0, 0]);
-    assert_eq!(rewritten, 4);
+    let mut pos = 1;
+    let mut data = *b" null";
+    TrueFalseNull::bitmix_to_tlv(&mut data, &mut pos).unwrap();
+    assert_eq!(pos, 5);
+    assert_eq!(data, [b' ', NULL_MASK, 0, 0, 0]);
 
-    let DecodingResult { value, size } = TrueFalseNull::decode_tlv(&data).unwrap();
+    pos = 1;
+    let value = TrueFalseNull::decode_tlv(&data, &mut pos).unwrap();
+    assert_eq!(pos, 5);
     assert_eq!(value, TrueFalseNull::Null);
-    assert_eq!(size, 4);
 }

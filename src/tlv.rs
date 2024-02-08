@@ -1,16 +1,11 @@
 pub(crate) trait BitmixToTLV {
-    fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize>;
-}
-
-pub(crate) struct DecodingResult<T> {
-    pub(crate) value: T,
-    pub(crate) size: usize,
+    fn bitmix_to_tlv(data: &mut [u8], pos: &mut usize) -> Option<()>;
 }
 
 pub(crate) trait DecodeTLV<'a> {
     type ReturnType;
 
-    fn decode_tlv(data: &'a [u8]) -> Option<DecodingResult<Self::ReturnType>>;
+    fn decode_tlv(data: &'a [u8], pos: &mut usize) -> Option<Self::ReturnType>;
 }
 
 pub(crate) fn bitmix_consume_byte<const B: u8>(data: &mut [u8], pos: &mut usize) -> bool {
