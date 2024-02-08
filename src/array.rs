@@ -1,7 +1,7 @@
 use crate::{
     bytesize::Bytesize,
     mask::{ARRAY_MASK, TYPE_MASK},
-    tlv::{bitmix_req_byte_and_nullify, BitmixToTLV, DecodeTLV, DecodingResult},
+    tlv::{bitmix_consume_byte, BitmixToTLV, DecodeTLV, DecodingResult},
     value::Value,
     ws::skip_ws,
 };
@@ -11,29 +11,29 @@ pub struct Array<'a> {
     pub(crate) data: &'a [u8],
 }
 
-fn bitmix_element(data: &mut [u8], region_size: &mut usize) -> Option<()> {
-    *region_size += Value::bitmix_to_tlv(&mut data[*region_size..])?;
+fn bitmix_element(data: &mut [u8], pos: &mut usize) -> Option<()> {
+    *pos += Value::bitmix_to_tlv(&mut data[*pos..])?;
     Some(())
 }
 
-fn bitmix_elements_and_close(data: &mut [u8], region_size: &mut usize) -> Option<()> {
-    skip_ws(data, region_size);
+fn bitmix_elements_and_close(data: &mut [u8], pos: &mut usize) -> Option<()> {
+    skip_ws(data, pos);
 
-    if bitmix_req_byte_and_nullify::<b']'>(data, region_size) {
+    if bitmix_consume_byte::<b']'>(data, pos) {
         // empty object
         return Some(());
     }
 
-    bitmix_element(data, region_size)?;
+    bitmix_element(data, pos)?;
 
-    while *region_size < data.len() {
-        skip_ws(data, region_size);
+    while *pos < data.len() {
+        skip_ws(data, pos);
 
-        if bitmix_req_byte_and_nullify::<b']'>(data, region_size) {
+        if bitmix_consume_byte::<b']'>(data, pos) {
             return Some(());
-        } else if bitmix_req_byte_and_nullify::<b','>(data, region_size) {
-            skip_ws(data, region_size);
-            bitmix_element(data, region_size)?;
+        } else if bitmix_consume_byte::<b','>(data, pos) {
+            skip_ws(data, pos);
+            bitmix_element(data, pos)?;
         }
     }
 
@@ -46,20 +46,20 @@ impl BitmixToTLV for Array<'_> {
             return None;
         }
 
-        let mut region_size = 1;
-        skip_ws(data, &mut region_size);
+        let mut pos = 1;
+        skip_ws(data, &mut pos);
 
-        if !bitmix_req_byte_and_nullify::<b']'>(data, &mut region_size) {
-            bitmix_elements_and_close(data, &mut region_size)?;
+        if !bitmix_consume_byte::<b']'>(data, &mut pos) {
+            bitmix_elements_and_close(data, &mut pos)?;
         }
 
         data[0] = 0;
-        data[region_size - 1] = 0;
+        data[pos - 1] = 0;
 
-        Bytesize::write(&mut data[..region_size], region_size - 2);
+        Bytesize::write(&mut data[..pos], pos - 2);
         data[0] |= ARRAY_MASK;
 
-        Some(region_size)
+        Some(pos)
     }
 }
 
