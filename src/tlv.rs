@@ -12,3 +12,13 @@ pub(crate) trait DecodeTLV<'a> {
 
     fn decode_tlv(data: &'a [u8]) -> Option<DecodingResult<Self::ReturnType>>;
 }
+
+pub(crate) fn bitmix_req_byte_and_nullify<const B: u8>(data: &mut [u8], pos: &mut usize) -> bool {
+    if data[*pos] == B {
+        data[*pos] = 0;
+        *pos += 1;
+        true
+    } else {
+        false
+    }
+}

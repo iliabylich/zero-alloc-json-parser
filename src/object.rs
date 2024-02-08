@@ -2,7 +2,7 @@ use crate::{
     bytesize::Bytesize,
     mask::{OBJECT_MASK, TYPE_MASK},
     string::String,
-    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
+    tlv::{bitmix_req_byte_and_nullify, BitmixToTLV, DecodeTLV, DecodingResult},
     value::Value,
     ws::skip_ws,
 };
@@ -15,36 +15,24 @@ pub struct Object<'a> {
 fn bitmix_pair(data: &mut [u8], region_size: &mut usize) -> Option<()> {
     // key
     *region_size += String::bitmix_to_tlv(&mut data[*region_size..])?;
-    *region_size += skip_ws(&mut data[*region_size..]);
+    skip_ws(data, region_size);
 
     // ":"
-    if data[*region_size] == b':' {
-        data[*region_size] = 0;
-        *region_size += 1;
-    } else {
+    if !bitmix_req_byte_and_nullify::<b':'>(data, region_size) {
         return None;
     }
 
     // value
-    *region_size += skip_ws(&mut data[*region_size..]);
+    skip_ws(data, region_size);
     *region_size += Value::bitmix_to_tlv(&mut data[*region_size..])?;
 
     Some(())
 }
 
-fn bitmix_closing_brace(data: &mut [u8], region_size: &mut usize) -> Option<()> {
-    if data[*region_size] == b'}' {
-        *region_size += 1;
-        Some(())
-    } else {
-        None
-    }
-}
-
 fn bitmix_pair_list_and_close(data: &mut [u8], region_size: &mut usize) -> Option<()> {
-    *region_size += skip_ws(&mut data[*region_size..]);
+    skip_ws(data, region_size);
 
-    if bitmix_closing_brace(data, region_size).is_some() {
+    if bitmix_req_byte_and_nullify::<b'}'>(data, region_size) {
         // empty object
         return Some(());
     }
@@ -52,14 +40,14 @@ fn bitmix_pair_list_and_close(data: &mut [u8], region_size: &mut usize) -> Optio
     bitmix_pair(data, region_size)?;
 
     while *region_size < data.len() {
-        *region_size += skip_ws(&mut data[*region_size..]);
+        skip_ws(data, region_size);
 
-        if bitmix_closing_brace(data, region_size).is_some() {
+        if bitmix_req_byte_and_nullify::<b'}'>(data, region_size) {
             return Some(());
         } else if data[*region_size] == b',' {
             data[*region_size] = 0;
             *region_size += 1;
-            *region_size += skip_ws(&mut data[*region_size..]);
+            skip_ws(data, region_size);
 
             bitmix_pair(data, region_size)?;
         }
@@ -74,9 +62,9 @@ impl BitmixToTLV for Object<'_> {
             return None;
         }
         let mut region_size = 1;
-        region_size += skip_ws(&mut data[region_size..]);
+        skip_ws(data, &mut region_size);
 
-        if bitmix_closing_brace(data, &mut region_size).is_none() {
+        if !bitmix_req_byte_and_nullify::<b'}'>(data, &mut region_size) {
             bitmix_pair_list_and_close(data, &mut region_size)?;
         }
 

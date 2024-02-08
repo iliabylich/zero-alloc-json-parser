@@ -66,8 +66,9 @@ impl From<TrueFalseNull> for Value<'_> {
 
 impl BitmixToTLV for Value<'_> {
     fn bitmix_to_tlv(mut data: &mut [u8]) -> Option<usize> {
-        let skipped = skip_ws(data);
-        data = &mut data[skipped..];
+        let mut skip = 0;
+        skip_ws(data, &mut skip);
+        data = &mut data[skip..];
 
         None.or_else(|| Object::bitmix_to_tlv(data))
             .or_else(|| Array::bitmix_to_tlv(data))

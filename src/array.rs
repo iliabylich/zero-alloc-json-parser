@@ -1,7 +1,7 @@
 use crate::{
     bytesize::Bytesize,
     mask::{ARRAY_MASK, TYPE_MASK},
-    tlv::{BitmixToTLV, DecodeTLV, DecodingResult},
+    tlv::{bitmix_req_byte_and_nullify, BitmixToTLV, DecodeTLV, DecodingResult},
     value::Value,
     ws::skip_ws,
 };
@@ -11,27 +11,46 @@ pub struct Array<'a> {
     pub(crate) data: &'a [u8],
 }
 
+fn bitmix_element(data: &mut [u8], region_size: &mut usize) -> Option<()> {
+    *region_size += Value::bitmix_to_tlv(&mut data[*region_size..])?;
+    Some(())
+}
+
+fn bitmix_elements_and_close(data: &mut [u8], region_size: &mut usize) -> Option<()> {
+    skip_ws(data, region_size);
+
+    if bitmix_req_byte_and_nullify::<b']'>(data, region_size) {
+        // empty object
+        return Some(());
+    }
+
+    bitmix_element(data, region_size)?;
+
+    while *region_size < data.len() {
+        skip_ws(data, region_size);
+
+        if bitmix_req_byte_and_nullify::<b']'>(data, region_size) {
+            return Some(());
+        } else if bitmix_req_byte_and_nullify::<b','>(data, region_size) {
+            skip_ws(data, region_size);
+            bitmix_element(data, region_size)?;
+        }
+    }
+
+    None
+}
+
 impl BitmixToTLV for Array<'_> {
     fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize> {
         if data[0] != b'[' {
             return None;
         }
+
         let mut region_size = 1;
+        skip_ws(data, &mut region_size);
 
-        while region_size < data.len() {
-            region_size += skip_ws(&mut data[region_size..]);
-
-            if data[region_size] == b']' {
-                region_size += 1;
-                break;
-            } else if data[region_size] == b',' {
-                data[region_size] = 0;
-                region_size += 1;
-            } else if let Some(len) = Value::bitmix_to_tlv(&mut data[region_size..]) {
-                region_size += len;
-            } else {
-                return None;
-            }
+        if !bitmix_req_byte_and_nullify::<b']'>(data, &mut region_size) {
+            bitmix_elements_and_close(data, &mut region_size)?;
         }
 
         data[0] = 0;

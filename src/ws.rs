@@ -1,13 +1,11 @@
-pub(crate) fn skip_ws(data: &mut [u8]) -> usize {
-    let mut i = 0;
-    while i < data.len() {
-        match data[i] {
+pub(crate) fn skip_ws(data: &mut [u8], pos: &mut usize) {
+    while *pos < data.len() {
+        match data[*pos] {
             b' ' | b'\t' | b'\n' | b'\r' => {
-                data[i] = 0;
-                i += 1
+                data[*pos] = 0;
+                *pos += 1
             }
             _ => break,
         }
     }
-    i
 }
