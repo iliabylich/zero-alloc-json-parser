@@ -15,23 +15,21 @@ fn unhex(c: u8) -> u8 {
     }
 }
 
-fn bytesize_of_json_string(data: &[u8]) -> Option<usize> {
-    let mut region_size = 1;
-    while region_size < data.len() {
-        if data[region_size] == b'"' {
-            region_size += 1;
-            return Some(region_size);
-        } else {
-            region_size += 1;
-        }
-    }
-    None
+struct UnescapingResult {
+    bytes_processed: usize,
+    bytes_written: usize,
 }
 
-fn rewrite_unescaped_json_string(data: &mut [u8], unescaped_bytesize: usize) -> usize {
+fn rewrite_unescaped_json_string(data: &mut [u8]) -> Option<UnescapingResult> {
     let mut write_to = 1;
     let mut pos = 1;
-    while pos < unescaped_bytesize {
+    let unescaped_bytesize;
+
+    loop {
+        if pos >= data.len() {
+            return None;
+        }
+
         if data[pos] == b'\\' {
             match data[pos + 1] {
                 b'n' => {
@@ -68,6 +66,11 @@ fn rewrite_unescaped_json_string(data: &mut [u8], unescaped_bytesize: usize) -> 
                     other as char
                 ),
             }
+        } else if data[pos] == b'"' {
+            data[write_to] = b'"';
+            write_to += 1;
+            unescaped_bytesize = pos + 1;
+            break;
         } else {
             data[write_to] = data[pos];
             pos += 1;
@@ -83,7 +86,10 @@ fn rewrite_unescaped_json_string(data: &mut [u8], unescaped_bytesize: usize) -> 
     let new_bytesize = write_to;
     data[new_bytesize - 1] = b'"';
 
-    new_bytesize
+    Some(UnescapingResult {
+        bytes_processed: unescaped_bytesize,
+        bytes_written: new_bytesize,
+    })
 }
 
 impl BitmixToTLV for String {
@@ -91,13 +97,15 @@ impl BitmixToTLV for String {
         if data[0] != b'"' {
             return None;
         }
-        let unescaped_bytesize = bytesize_of_json_string(data)?;
-        let bytes_left = rewrite_unescaped_json_string(data, unescaped_bytesize);
+        let UnescapingResult {
+            bytes_processed,
+            bytes_written,
+        } = rewrite_unescaped_json_string(data)?;
 
-        Bytesize::write(&mut data[..bytes_left], bytes_left - 2);
+        Bytesize::write(&mut data[..bytes_written], bytes_written - 2);
         data[0] |= STRING_MASK;
 
-        Some(unescaped_bytesize)
+        Some(bytes_processed)
     }
 }
 
