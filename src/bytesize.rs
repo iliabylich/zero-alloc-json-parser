@@ -3,7 +3,7 @@
 //   0 means a single byte bytesize (i.e. out container is VERY short, max 0b1111 = 15 bytes)
 // If the container is longer than 15 bytes, we need to shift it to the right
 // and use one extra byte to store the bytesize of the container
-const MAX_EMBEDDED_BYTESIZE: usize = 15;
+const MAX_EMBEDDED_BYTESIZE: u8 = 15;
 pub(crate) const LONG_CONTAINER_MASK: u8 = 0b10000;
 
 #[derive(Debug, Clone, Copy)]
@@ -13,23 +13,22 @@ pub(crate) struct Bytesize {
 }
 
 impl Bytesize {
-    pub(crate) fn write(data: &mut [u8], mut bytesize: usize) {
+    pub(crate) fn write(data: &mut [u8], bytesize: usize) {
         if bytesize > 2048 {
             panic!("container is too long, max 2048 bytes allowed")
         }
+        let bytesize = bytesize as u8;
 
         if bytesize <= MAX_EMBEDDED_BYTESIZE {
-            data[0] = bytesize as u8;
+            data[0] = bytesize;
             data[data.len() - 1] = 0;
         } else {
             // long container, needs shifting
-            let three_bytes_of_bytesize = (bytesize % 8) as u8;
-            bytesize >>= 3;
-            data[0] = LONG_CONTAINER_MASK | three_bytes_of_bytesize;
+            data[0] = LONG_CONTAINER_MASK | (bytesize % 8);
             for idx in (1..(data.len() - 1)).rev() {
                 data[idx + 1] = data[idx];
             }
-            data[1] = bytesize as u8;
+            data[1] = bytesize >> 3;
         }
     }
 
