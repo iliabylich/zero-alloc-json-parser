@@ -42,8 +42,8 @@ impl<'a> From<&'a [u8]> for Value<'a> {
 impl From<IntOrFloat> for Value<'_> {
     fn from(int_or_float: IntOrFloat) -> Self {
         match int_or_float {
-            IntOrFloat::Integer(i) => Value::Integer(i),
-            IntOrFloat::Float(f) => Value::Float(f),
+            IntOrFloat::Integer { .. } => Value::Integer(int_or_float.unwrap_int()),
+            IntOrFloat::Float { .. } => Value::Float(int_or_float.unwrap_float()),
         }
     }
 }

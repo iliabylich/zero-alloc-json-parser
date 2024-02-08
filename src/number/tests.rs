@@ -1,5 +1,5 @@
 use crate::{
-    number::{IntOrFloat, Number},
+    number::Number,
     tlv::{BitmixToTLV, DecodeTLV},
 };
 
@@ -14,7 +14,7 @@ fn test_0() {
     pos = 1;
     let value = Number::decode_tlv(&data, &mut pos).unwrap();
     assert_eq!(pos, 2);
-    assert_eq!(value, IntOrFloat::Integer(0));
+    assert_eq!(value.unwrap_int(), 0);
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn test_1() {
     pos = 1;
     let value = Number::decode_tlv(&data, &mut pos).unwrap();
     assert_eq!(pos, 2);
-    assert_eq!(value, IntOrFloat::Integer(1));
+    assert_eq!(value.unwrap_int(), 1);
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn test_9() {
     pos = 1;
     let value = Number::decode_tlv(&data, &mut pos).unwrap();
     assert_eq!(pos, 2);
-    assert_eq!(value, IntOrFloat::Integer(9));
+    assert_eq!(value.unwrap_int(), 9);
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn test_69() {
     pos = 1;
     let value = Number::decode_tlv(&data, &mut pos).unwrap();
     assert_eq!(pos, 3);
-    assert_eq!(value, IntOrFloat::Integer(69));
+    assert_eq!(value.unwrap_int(), 69);
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_1234567890987654321() {
     pos = 1;
     let value = Number::decode_tlv(&data, &mut pos).unwrap();
     assert_eq!(pos, 20);
-    assert_eq!(value, IntOrFloat::Integer(1234567890987654321));
+    assert_eq!(value.unwrap_int(), 1234567890987654321);
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn test_minus_1() {
     pos = 1;
     let value = Number::decode_tlv(&data, &mut pos).unwrap();
     assert_eq!(pos, 3);
-    assert_eq!(value, IntOrFloat::Integer(-1));
+    assert_eq!(value.unwrap_int(), -1);
 }
 
 #[test]
@@ -137,5 +137,5 @@ fn test_two_point_three() {
     pos = 1;
     let value = Number::decode_tlv(&data, &mut pos).unwrap();
     assert_eq!(pos, 4);
-    assert_eq!(value, IntOrFloat::Float(2.3));
+    assert_eq!(value.unwrap_float(), 2.3);
 }

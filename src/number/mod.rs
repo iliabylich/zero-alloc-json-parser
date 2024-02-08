@@ -86,24 +86,28 @@ impl DecodeTLV<'_> for Number {
 
         if !header.multibyte {
             *pos += 1;
-            return Some(IntOrFloat::Integer((header.char - b'0') as i64));
+            return Some(IntOrFloat::Integer {
+                value: (header.char - b'0') as i64,
+                negative: false,
+            });
         }
 
-        let mut negative;
         let mut result;
 
         if header.char == b'-' {
-            negative = true;
-            result = IntOrFloat::Integer(0);
+            result = IntOrFloat::Integer {
+                value: 0,
+                negative: true,
+            };
         } else {
-            negative = false;
-            result = IntOrFloat::Integer((header.char - b'0') as i64);
+            result = IntOrFloat::Integer {
+                value: (header.char - b'0') as i64,
+                negative: false,
+            };
         }
 
         let mut length = 0;
         let mut idx = 1;
-        let mut seen_dot = false;
-        let mut digits_after_dot = 0;
         let mut read_total = 1;
 
         loop {
@@ -117,20 +121,16 @@ impl DecodeTLV<'_> for Number {
 
             match char {
                 NonHeaderByteChar::Minus { .. } => {
-                    negative = true;
+                    result.negate();
                 }
                 NonHeaderByteChar::Exponent { .. } => {
                     panic!("exponents are not supported yet")
                 }
                 NonHeaderByteChar::Dot { .. } => {
-                    result = result.make_float();
-                    seen_dot = true;
+                    result.add_dot();
                 }
                 NonHeaderByteChar::Digit { char, .. } => {
-                    result = result.add(char - b'0');
-                    if seen_dot {
-                        digits_after_dot += 1;
-                    }
+                    result.append(char - b'0');
                 }
             }
             idx += 1;
@@ -138,18 +138,6 @@ impl DecodeTLV<'_> for Number {
             if idx >= length {
                 break;
             }
-        }
-
-        if negative {
-            result = result.negate();
-        }
-        if digits_after_dot > 0 {
-            result = match result {
-                IntOrFloat::Integer(_) => panic!("internal error, integer with dot?"),
-                IntOrFloat::Float(value) => {
-                    IntOrFloat::Float(value / 10_i32.pow(digits_after_dot) as f64)
-                }
-            };
         }
 
         *pos += read_total;
