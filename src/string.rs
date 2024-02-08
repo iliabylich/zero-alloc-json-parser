@@ -15,82 +15,89 @@ fn unhex(c: u8) -> u8 {
     }
 }
 
+fn bytesize_of_json_string(data: &[u8]) -> Option<usize> {
+    let mut region_size = 1;
+    while region_size < data.len() {
+        if data[region_size] == b'"' {
+            region_size += 1;
+            return Some(region_size);
+        } else {
+            region_size += 1;
+        }
+    }
+    None
+}
+
+fn rewrite_unescaped_json_string(data: &mut [u8], unescaped_bytesize: usize) -> usize {
+    let mut write_to = 1;
+    let mut pos = 1;
+    while pos < unescaped_bytesize {
+        if data[pos] == b'\\' {
+            match data[pos + 1] {
+                b'n' => {
+                    data[write_to] = b'\n';
+                    write_to += 1;
+                    pos += 2;
+                }
+                b't' => {
+                    data[write_to] = b'\t';
+                    write_to += 1;
+                    pos += 2;
+                }
+                b'\\' => {
+                    data[write_to] = b'\\';
+                    write_to += 1;
+                    pos += 2;
+                }
+                b'u' => {
+                    let byte1 = unhex(data[pos + 2]);
+                    let byte2 = unhex(data[pos + 3]);
+                    let byte3 = unhex(data[pos + 4]);
+                    let byte4 = unhex(data[pos + 5]);
+                    let as_u32 = (byte1 as u32) << 12
+                        | (byte2 as u32) << 8
+                        | (byte3 as u32) << 4
+                        | byte4 as u32;
+                    let as_char = char::from_u32(as_u32).unwrap();
+                    as_char.encode_utf8(&mut data[write_to..]);
+                    write_to += as_char.len_utf8();
+                    pos += 6;
+                }
+                other => panic!(
+                    "only \\n, \\t, \\\\, and \\uXXXX are supported, got: \\{}",
+                    other as char
+                ),
+            }
+        } else {
+            data[write_to] = data[pos];
+            pos += 1;
+            write_to += 1;
+        }
+    }
+
+    data.iter_mut()
+        .skip(write_to)
+        .take(unescaped_bytesize - write_to)
+        .for_each(|byte| *byte = 0);
+
+    let new_bytesize = write_to;
+    data[new_bytesize - 1] = b'"';
+
+    new_bytesize
+}
+
 impl BitmixToTLV for String {
     fn bitmix_to_tlv(data: &mut [u8]) -> Option<usize> {
         if data[0] != b'"' {
             return None;
         }
-        let mut region_size = 1;
-        let mut found_end = false;
-        while region_size < data.len() {
-            if data[region_size] == b'"' {
-                found_end = true;
-                break;
-            } else {
-                region_size += 1;
-            }
-        }
-        if !found_end {
-            return None;
-        }
-        region_size += 1;
+        let unescaped_bytesize = bytesize_of_json_string(data)?;
+        let bytes_left = rewrite_unescaped_json_string(data, unescaped_bytesize);
 
-        let mut write_to = 1;
-        let mut read_from = 1;
-        while read_from < region_size {
-            if data[read_from] == b'\\' {
-                match data[read_from + 1] {
-                    b'n' => {
-                        data[write_to] = b'\n';
-                        write_to += 1;
-                        read_from += 2;
-                    }
-                    b't' => {
-                        data[write_to] = b'\t';
-                        write_to += 1;
-                        read_from += 2;
-                    }
-                    b'\\' => {
-                        data[write_to] = b'\\';
-                        write_to += 1;
-                        read_from += 2;
-                    }
-                    b'u' => {
-                        let byte1 = unhex(data[read_from + 2]);
-                        let byte2 = unhex(data[read_from + 3]);
-                        let byte3 = unhex(data[read_from + 4]);
-                        let byte4 = unhex(data[read_from + 5]);
-                        let as_u32 = (byte1 as u32) << 12
-                            | (byte2 as u32) << 8
-                            | (byte3 as u32) << 4
-                            | byte4 as u32;
-                        let as_char = char::from_u32(as_u32).unwrap();
-                        as_char.encode_utf8(&mut data[write_to..]);
-                        write_to += as_char.len_utf8();
-                        read_from += 6;
-                    }
-                    other => panic!(
-                        "only \\n, \\t, \\\\, and \\uXXXX are supported, got: \\{}",
-                        other as char
-                    ),
-                }
-            } else {
-                data[write_to] = data[read_from];
-                read_from += 1;
-                write_to += 1;
-            }
-        }
-
-        for byte in data.iter_mut().skip(write_to).take(region_size - write_to) {
-            *byte = 0;
-        }
-        let end = write_to;
-        data[end - 1] = b'"';
-
-        Bytesize::write(&mut data[..end], end - 2);
+        Bytesize::write(&mut data[..bytes_left], bytes_left - 2);
         data[0] |= STRING_MASK;
 
-        Some(region_size)
+        Some(unescaped_bytesize)
     }
 }
 
