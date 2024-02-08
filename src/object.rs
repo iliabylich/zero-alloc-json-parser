@@ -12,12 +12,60 @@ pub struct Object<'a> {
     pub(crate) data: &'a [u8],
 }
 
-#[derive(Debug)]
-enum State {
-    Key,
-    Value,
-    Colon,
-    CommaOrEnd,
+fn bitmix_pair(data: &mut [u8], region_size: &mut usize) -> Option<()> {
+    // key
+    *region_size += String::bitmix_to_tlv(&mut data[*region_size..])?;
+    *region_size += skip_ws(&mut data[*region_size..]);
+
+    // ":"
+    if data[*region_size] == b':' {
+        data[*region_size] = 0;
+        *region_size += 1;
+    } else {
+        return None;
+    }
+
+    // value
+    *region_size += skip_ws(&mut data[*region_size..]);
+    *region_size += Value::bitmix_to_tlv(&mut data[*region_size..])?;
+
+    Some(())
+}
+
+fn bitmix_closing_brace(data: &mut [u8], region_size: &mut usize) -> Option<()> {
+    if data[*region_size] == b'}' {
+        *region_size += 1;
+        Some(())
+    } else {
+        None
+    }
+}
+
+fn bitmix_pair_list_and_close(data: &mut [u8], region_size: &mut usize) -> Option<()> {
+    *region_size += skip_ws(&mut data[*region_size..]);
+
+    if bitmix_closing_brace(data, region_size).is_some() {
+        // empty object
+        return Some(());
+    }
+
+    bitmix_pair(data, region_size)?;
+
+    while *region_size < data.len() {
+        *region_size += skip_ws(&mut data[*region_size..]);
+
+        if bitmix_closing_brace(data, region_size).is_some() {
+            return Some(());
+        } else if data[*region_size] == b',' {
+            data[*region_size] = 0;
+            *region_size += 1;
+            *region_size += skip_ws(&mut data[*region_size..]);
+
+            bitmix_pair(data, region_size)?;
+        }
+    }
+
+    None
 }
 
 impl BitmixToTLV for Object<'_> {
@@ -26,63 +74,11 @@ impl BitmixToTLV for Object<'_> {
             return None;
         }
         let mut region_size = 1;
-        let mut found_end = false;
-        let mut state = State::Key;
-        let mut seen_comma = false;
+        region_size += skip_ws(&mut data[region_size..]);
 
-        while region_size < data.len() {
-            region_size += skip_ws(&mut data[region_size..]);
-
-            match state {
-                State::Key => {
-                    if let Some(len) = String::bitmix_to_tlv(&mut data[region_size..]) {
-                        state = State::Colon;
-                        region_size += len;
-                    } else if seen_comma {
-                        // parse error
-                        return None;
-                    } else {
-                        // empty object
-                        state = State::CommaOrEnd;
-                        continue;
-                    }
-                }
-                State::Value => {
-                    if let Some(len) = Value::bitmix_to_tlv(&mut data[region_size..]) {
-                        state = State::CommaOrEnd;
-                        region_size += len;
-                    } else {
-                        return None;
-                    }
-                }
-                State::Colon => {
-                    if data[region_size] == b':' {
-                        state = State::Value;
-                        data[region_size] = 0;
-                        region_size += 1;
-                    } else {
-                        return None;
-                    }
-                }
-                State::CommaOrEnd => {
-                    if data[region_size] == b'}' {
-                        found_end = true;
-                        break;
-                    } else if data[region_size] == b',' {
-                        state = State::Key;
-                        data[region_size] = 0;
-                        region_size += 1;
-                        seen_comma = true;
-                    } else {
-                        return None;
-                    }
-                }
-            }
+        if bitmix_closing_brace(data, &mut region_size).is_none() {
+            bitmix_pair_list_and_close(data, &mut region_size)?;
         }
-        if !found_end {
-            return None;
-        }
-        region_size += 1;
 
         data[0] = 0;
         data[region_size - 1] = 0;
@@ -106,11 +102,11 @@ impl<'a> DecodeTLV<'a> for Object<'a> {
         }
 
         let Bytesize { bytesize, offset } = Bytesize::read(data);
-        let object = Object {
-            data: &data[offset..(offset + bytesize)],
-        };
+
         Some(DecodingResult {
-            value: object,
+            value: Object {
+                data: &data[offset..(offset + bytesize)],
+            },
             size: bytesize + offset,
         })
     }

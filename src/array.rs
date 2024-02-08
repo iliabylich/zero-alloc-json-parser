@@ -17,13 +17,12 @@ impl BitmixToTLV for Array<'_> {
             return None;
         }
         let mut region_size = 1;
-        let mut found_end = false;
 
         while region_size < data.len() {
             region_size += skip_ws(&mut data[region_size..]);
 
             if data[region_size] == b']' {
-                found_end = true;
+                region_size += 1;
                 break;
             } else if data[region_size] == b',' {
                 data[region_size] = 0;
@@ -34,10 +33,6 @@ impl BitmixToTLV for Array<'_> {
                 return None;
             }
         }
-        if !found_end {
-            return None;
-        }
-        region_size += 1;
 
         data[0] = 0;
         data[region_size - 1] = 0;
@@ -61,11 +56,11 @@ impl<'a> DecodeTLV<'a> for Array<'a> {
         }
 
         let Bytesize { bytesize, offset } = Bytesize::read(data);
-        let array = Array {
-            data: &data[offset..(offset + bytesize)],
-        };
+
         Some(DecodingResult {
-            value: array,
+            value: Array {
+                data: &data[offset..(offset + bytesize)],
+            },
             size: bytesize + offset,
         })
     }

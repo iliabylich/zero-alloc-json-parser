@@ -16,12 +16,9 @@ impl<'a> Iterator for ArrayIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.data = skip_zeroes(self.data);
-        let DecodingResult {
-            value: element,
-            size: read,
-        } = Value::decode_tlv(self.data)?;
-        self.data = &self.data[read..];
-        Some(element)
+        let DecodingResult { value, size } = Value::decode_tlv(self.data)?;
+        self.data = &self.data[size..];
+        Some(value)
     }
 }
 
@@ -43,15 +40,12 @@ impl<'a> Iterator for ObjectIterator<'a> {
         if self.data.is_empty() {
             return None;
         }
-        let DecodingResult {
-            value: key,
-            size: read,
-        } = String::decode_tlv(self.data)?;
-        self.data = &self.data[read..];
+        let key = String::decode_tlv(self.data)?;
+        self.data = &self.data[key.size..];
         self.data = skip_zeroes(self.data);
-        let DecodingResult { value, size: read } = Value::decode_tlv(self.data)?;
-        self.data = &self.data[read..];
-        Some((key, value))
+        let value = Value::decode_tlv(self.data)?;
+        self.data = &self.data[value.size..];
+        Some((key.value, value.value))
     }
 }
 
