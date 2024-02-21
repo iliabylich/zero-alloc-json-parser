@@ -1,5 +1,5 @@
 use crate::{
-    bytesize::Bytesize,
+    length::Length,
     mask::{STRING_MASK, TYPE_MASK},
     tlv::{BitmixToTLV, DecodeTLV},
 };
@@ -101,8 +101,10 @@ impl BitmixToTLV for String {
             read_bytesize,
             written_bytesize,
         } = rewrite_unescaped_json_string(data, *pos)?;
+        dbg!(&data);
+        dbg!(written_bytesize);
 
-        Bytesize::write(data, *pos, *pos + written_bytesize, written_bytesize - 2);
+        Length::write(data, *pos, *pos + written_bytesize, written_bytesize - 2);
         data[*pos] |= STRING_MASK;
 
         *pos += read_bytesize;
@@ -121,9 +123,9 @@ impl<'a> DecodeTLV<'a> for String {
             return None;
         }
 
-        let Bytesize { bytesize, offset } = Bytesize::read(data, *pos);
-        let bytes = &data[(*pos + offset)..(*pos + offset + bytesize)];
-        *pos += bytesize + offset;
+        let Length(length) = Length::read(data, *pos);
+        let bytes = &data[(*pos + 2)..(*pos + 2 + length)];
+        *pos += length + 2;
         Some(bytes)
     }
 }
@@ -138,7 +140,7 @@ fn test_string_empty() {
 
     pos = 1;
     let value = String::decode_tlv(&data, &mut pos).unwrap();
-    assert_eq!(pos, 2);
+    assert_eq!(pos, 3);
     assert_eq!(value, b"");
 }
 
@@ -150,19 +152,17 @@ fn test_string_short() {
     assert_eq!(pos, 8);
     assert_eq!(
         data,
-        [b' ', STRING_MASK | 5, b'h', b'e', b'l', b'l', b'o', 0]
+        [b' ', STRING_MASK | 5, 0, b'h', b'e', b'l', b'l', b'o']
     );
 
     pos = 1;
     let value = String::decode_tlv(&data, &mut pos).unwrap();
-    assert_eq!(pos, 7);
+    assert_eq!(pos, 8);
     assert_eq!(value, b"hello");
 }
 
 #[test]
 fn test_string_long() {
-    use crate::bytesize::LONG_CONTAINER_MASK;
-
     let mut pos = 1;
     let mut data = *b" \"abcdefghijklmnopqrstuvwxyz\"";
     String::bitmix_to_tlv(&mut data, &mut pos).unwrap();
@@ -172,8 +172,8 @@ fn test_string_long() {
         [
             b' ',
             // length is 26 = 0b11010
-            STRING_MASK | LONG_CONTAINER_MASK | 0b010, // 3 trailing bits of length
-            0b11,                                      // the rest of the length
+            STRING_MASK | 0b11010, // 5 trailing bits of length
+            0b0,                   // 8 leading bits of length
             b'a',
             b'b',
             b'c',
@@ -219,7 +219,8 @@ fn test_escaped() {
         data,
         [
             b' ',
-            STRING_MASK | 8,
+            STRING_MASK | 0b1000, // 5 trailing bits of length
+            0,                    // 8 leading bits of length
             b'a',
             b'\n',
             b'b',
@@ -236,12 +237,11 @@ fn test_escaped() {
             0,
             0,
             0,
-            0,
         ]
     );
 
     pos = 1;
     let value = String::decode_tlv(&data, &mut pos).unwrap();
-    assert_eq!(pos, 10);
+    assert_eq!(pos, 11);
     assert_eq!(value, b"a\nb\tcd\\e");
 }
