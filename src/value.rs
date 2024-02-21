@@ -88,6 +88,14 @@ impl<'a> DecodeTLV<'a> for Value<'a> {
             .or_else(|| Number::decode_tlv(data, pos).map(Value::from))
             .or_else(|| TrueFalseNull::decode_tlv(data, pos).map(Value::from))
     }
+
+    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
+        Object::skip_tlv(data, pos)
+            || Array::skip_tlv(data, pos)
+            || String::skip_tlv(data, pos)
+            || Number::skip_tlv(data, pos)
+            || TrueFalseNull::skip_tlv(data, pos)
+    }
 }
 
 impl<'a> Value<'a> {

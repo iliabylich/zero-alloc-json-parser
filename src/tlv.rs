@@ -6,6 +6,8 @@ pub(crate) trait DecodeTLV<'a> {
     type ReturnType;
 
     fn decode_tlv(data: &'a [u8], pos: &mut usize) -> Option<Self::ReturnType>;
+    #[must_use]
+    fn skip_tlv(data: &'a [u8], pos: &mut usize) -> bool;
 }
 
 pub(crate) fn bitmix_consume_byte<const B: u8>(data: &mut [u8], pos: &mut usize) -> bool {

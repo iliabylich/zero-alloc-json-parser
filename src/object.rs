@@ -98,6 +98,19 @@ impl<'a> DecodeTLV<'a> for Object<'a> {
         *pos += offset + bytesize;
         Some(object)
     }
+
+    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
+        if *pos >= data.len() {
+            return false;
+        }
+        if data[*pos] & TYPE_MASK != OBJECT_MASK {
+            return false;
+        }
+
+        let Bytesize { bytesize, offset } = Bytesize::read(data, *pos);
+        *pos += offset + bytesize;
+        true
+    }
 }
 
 #[test]

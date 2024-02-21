@@ -1,6 +1,7 @@
 use crate::{
-    bytesize::Bytesize,
+    length::Length,
     mask::{ARRAY_MASK, TYPE_MASK},
+    skip_zeroes::skip_zeroes,
     tlv::{bitmix_consume_byte, BitmixToTLV, DecodeTLV},
     value::Value,
     ws::skip_ws,
@@ -16,7 +17,7 @@ fn bitmix_element(data: &mut [u8], pos: &mut usize) -> Option<()> {
     Some(())
 }
 
-fn bitmix_elements_and_close(data: &mut [u8], pos: &mut usize) -> Option<()> {
+fn bitmix_elements_and_close(data: &mut [u8], pos: &mut usize, length: &mut usize) -> Option<()> {
     skip_ws(data, pos);
 
     if bitmix_consume_byte::<b']'>(data, pos) {
@@ -25,6 +26,7 @@ fn bitmix_elements_and_close(data: &mut [u8], pos: &mut usize) -> Option<()> {
     }
 
     bitmix_element(data, pos)?;
+    *length += 1;
 
     while *pos < data.len() {
         skip_ws(data, pos);
@@ -34,6 +36,7 @@ fn bitmix_elements_and_close(data: &mut [u8], pos: &mut usize) -> Option<()> {
         } else if bitmix_consume_byte::<b','>(data, pos) {
             skip_ws(data, pos);
             bitmix_element(data, pos)?;
+            *length += 1;
         }
     }
 
@@ -43,6 +46,7 @@ fn bitmix_elements_and_close(data: &mut [u8], pos: &mut usize) -> Option<()> {
 impl BitmixToTLV for Array<'_> {
     fn bitmix_to_tlv(data: &mut [u8], pos: &mut usize) -> Option<()> {
         let start = *pos;
+        let mut length = 0;
 
         if data[*pos] != b'[' {
             return None;
@@ -52,13 +56,13 @@ impl BitmixToTLV for Array<'_> {
         skip_ws(data, pos);
 
         if !bitmix_consume_byte::<b']'>(data, pos) {
-            bitmix_elements_and_close(data, pos)?;
+            bitmix_elements_and_close(data, pos, &mut length)?;
         }
 
         data[start] = 0;
         data[*pos - 1] = 0;
 
-        Bytesize::write(data, start, *pos, *pos - start - 2);
+        Length::write(data, start, *pos, length);
         data[start] |= ARRAY_MASK;
 
         Some(())
@@ -76,13 +80,41 @@ impl<'a> DecodeTLV<'a> for Array<'a> {
             return None;
         }
 
-        let Bytesize { bytesize, offset } = Bytesize::read(data, *pos);
+        let Length(length) = Length::read(data, *pos);
+
+        *pos += 2;
+        let start = *pos;
+        for _ in 0..length {
+            skip_zeroes(data, pos);
+            let at = *pos;
+            if !Value::skip_tlv(data, pos) {
+                panic!("invalid array element at {}: {:?}", at, &data[at..]);
+            }
+        }
+        let end = *pos;
 
         let result = Array {
-            data: &data[(*pos + offset)..(*pos + offset + bytesize)],
+            data: &data[start..end],
         };
-        *pos += offset + bytesize;
         Some(result)
+    }
+
+    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
+        if *pos >= data.len() {
+            return false;
+        }
+        if data[*pos] & TYPE_MASK != ARRAY_MASK {
+            return false;
+        }
+
+        let Length(length) = Length::read(data, *pos);
+        *pos += 2;
+        for _ in 0..length {
+            if !Value::skip_tlv(data, pos) {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -96,7 +128,7 @@ fn test_array_empty() {
 
     pos = 1;
     let value = Array::decode_tlv(&data, &mut pos).unwrap();
-    assert_eq!(pos, 2);
+    assert_eq!(pos, 3);
     assert_eq!(value.data, &[]);
 }
 
@@ -110,7 +142,9 @@ fn test_array_short() {
         data,
         [
             b' ',
-            ARRAY_MASK | 7,
+            // length = 3 = 0b11
+            ARRAY_MASK | 0b11, // 5 trailing bits of length
+            0,                 // 8 leading bits of length
             0b001_00001,
             0,
             0,
@@ -118,19 +152,16 @@ fn test_array_short() {
             0,
             0,
             0b001_00011,
-            0
         ]
     );
 
     pos = 1;
     Array::decode_tlv(&data, &mut pos).unwrap();
-    assert_eq!(pos, 9);
+    assert_eq!(pos, 10);
 }
 
 #[test]
 fn test_array_long() {
-    use crate::bytesize::LONG_CONTAINER_MASK;
-
     let mut pos = 1;
     let mut data = *b" [1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2]";
     Array::bitmix_to_tlv(&mut data, &mut pos).unwrap();
@@ -139,10 +170,10 @@ fn test_array_long() {
         data,
         [
             b' ',
-            // length is 46 = 0b101110
-            ARRAY_MASK | LONG_CONTAINER_MASK | 0b110, // 3 trailing bits of length
-            0b101,                                    // the rest of the length
-            0b001_00001,                              // 1
+            // length is 16 = 0b10000
+            ARRAY_MASK | 0b10000, // 5 trailing bits of length
+            0b0,                  // 5 leading bits of length
+            0b001_00001,          // 1
             0,
             0,
             0b001_00010, // 2

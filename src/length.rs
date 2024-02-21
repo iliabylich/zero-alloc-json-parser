@@ -15,7 +15,6 @@ impl Length {
         }
 
         for idx in ((start)..(end - 1)).rev() {
-            // dbg!(idx + 1, idx);
             data[idx + 1] = data[idx];
         }
 
@@ -35,7 +34,6 @@ impl Length {
 fn split(length: usize) -> (u8, u8) {
     let l1 = length as u8 & 0b11111;
     let l2 = (length >> 5) as u8;
-    println!("split: {:#010b} {:#010b} -> {}", l1, l2, length);
     (l1, l2)
 }
 

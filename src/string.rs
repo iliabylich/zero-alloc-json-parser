@@ -101,8 +101,6 @@ impl BitmixToTLV for String {
             read_bytesize,
             written_bytesize,
         } = rewrite_unescaped_json_string(data, *pos)?;
-        dbg!(&data);
-        dbg!(written_bytesize);
 
         Length::write(data, *pos, *pos + written_bytesize, written_bytesize - 2);
         data[*pos] |= STRING_MASK;
@@ -127,6 +125,19 @@ impl<'a> DecodeTLV<'a> for String {
         let bytes = &data[(*pos + 2)..(*pos + 2 + length)];
         *pos += length + 2;
         Some(bytes)
+    }
+
+    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
+        if *pos >= data.len() {
+            return false;
+        }
+        if data[*pos] & TYPE_MASK != STRING_MASK {
+            return false;
+        }
+
+        let Length(length) = Length::read(data, *pos);
+        *pos += length + 2;
+        true
     }
 }
 
