@@ -59,27 +59,6 @@ impl DecodeTLV<'_> for TrueFalseNull {
             _ => None,
         }
     }
-
-    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
-        if *pos >= data.len() {
-            return false;
-        }
-        match data[*pos] {
-            TRUE_MASK => {
-                *pos += 4;
-                true
-            }
-            FALSE_MASK => {
-                *pos += 5;
-                true
-            }
-            NULL_MASK => {
-                *pos += 4;
-                true
-            }
-            _ => false,
-        }
-    }
 }
 
 #[test]

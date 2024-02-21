@@ -126,19 +126,6 @@ impl<'a> DecodeTLV<'a> for String {
         *pos += length + 2;
         Some(bytes)
     }
-
-    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
-        if *pos >= data.len() {
-            return false;
-        }
-        if data[*pos] & TYPE_MASK != STRING_MASK {
-            return false;
-        }
-
-        let Length(length) = Length::read(data, *pos);
-        *pos += length + 2;
-        true
-    }
 }
 
 #[test]

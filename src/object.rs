@@ -1,6 +1,7 @@
 use crate::{
-    bytesize::Bytesize,
+    length::Length,
     mask::{OBJECT_MASK, TYPE_MASK},
+    skip_zeroes::skip_zeroes,
     string::String,
     tlv::{bitmix_consume_byte, BitmixToTLV, DecodeTLV},
     value::Value,
@@ -29,7 +30,7 @@ fn bitmix_pair(data: &mut [u8], pos: &mut usize) -> Option<()> {
     Some(())
 }
 
-fn bitmix_pair_list_and_close(data: &mut [u8], pos: &mut usize) -> Option<()> {
+fn bitmix_pair_list_and_close(data: &mut [u8], pos: &mut usize, length: &mut usize) -> Option<()> {
     skip_ws(data, pos);
 
     if bitmix_consume_byte::<b'}'>(data, pos) {
@@ -38,6 +39,7 @@ fn bitmix_pair_list_and_close(data: &mut [u8], pos: &mut usize) -> Option<()> {
     }
 
     bitmix_pair(data, pos)?;
+    *length += 1;
 
     while *pos < data.len() {
         skip_ws(data, pos);
@@ -50,6 +52,7 @@ fn bitmix_pair_list_and_close(data: &mut [u8], pos: &mut usize) -> Option<()> {
             skip_ws(data, pos);
 
             bitmix_pair(data, pos)?;
+            *length += 1;
         }
     }
 
@@ -62,17 +65,19 @@ impl BitmixToTLV for Object<'_> {
             return None;
         }
         let start = *pos;
+        let mut length = 0;
         *pos += 1;
         skip_ws(data, pos);
 
         if !bitmix_consume_byte::<b'}'>(data, pos) {
-            bitmix_pair_list_and_close(data, pos)?;
+            bitmix_pair_list_and_close(data, pos, &mut length)?;
         }
 
         data[start] = 0;
         data[*pos - 1] = 0;
 
-        Bytesize::write(data, start, *pos, *pos - start - 2);
+        Length::write(data, start, *pos, length);
+        // Bytesize::write(data, start, *pos, *pos - start - 2);
         data[start] |= OBJECT_MASK;
 
         Some(())
@@ -90,26 +95,31 @@ impl<'a> DecodeTLV<'a> for Object<'a> {
             return None;
         }
 
-        let Bytesize { bytesize, offset } = Bytesize::read(data, *pos);
+        let Length(length) = Length::read(data, *pos);
+
+        *pos += 2;
+        let start = *pos;
+        for _ in 0..length {
+            skip_zeroes(data, pos);
+
+            let at = *pos;
+            if !String::skip_tlv(data, pos) {
+                panic!("invalid key at {}: {:?}", at, &data[at..]);
+            }
+
+            skip_zeroes(data, pos);
+
+            let at = *pos;
+            if !Value::skip_tlv(data, pos) {
+                panic!("invalid value at {}: {:?}", at, &data[at..]);
+            }
+        }
+        let end = *pos;
 
         let object = Object {
-            data: &data[(*pos + offset)..(*pos + offset + bytesize)],
+            data: &data[start..end],
         };
-        *pos += offset + bytesize;
         Some(object)
-    }
-
-    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
-        if *pos >= data.len() {
-            return false;
-        }
-        if data[*pos] & TYPE_MASK != OBJECT_MASK {
-            return false;
-        }
-
-        let Bytesize { bytesize, offset } = Bytesize::read(data, *pos);
-        *pos += offset + bytesize;
-        true
     }
 }
 
@@ -134,8 +144,9 @@ fn test_object_small() {
         data,
         [
             b' ',
-            // size is 14 = 0b1110
-            OBJECT_MASK | 14,
+            // size is 2 = 0b10
+            OBJECT_MASK | 0b10,
+            0,
             STRING_MASK | 1,
             0,
             b'a',
@@ -150,11 +161,10 @@ fn test_object_small() {
             0,
             0,
             0b001_00010,
-            0
         ]
     );
 
     pos = 1;
     Object::decode_tlv(&data, &mut pos).unwrap();
-    assert_eq!(pos, data.len() - 1); // because the object is small, and so closing "}" is 0
+    assert_eq!(pos, 17);
 }

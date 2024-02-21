@@ -98,24 +98,6 @@ impl<'a> DecodeTLV<'a> for Array<'a> {
         };
         Some(result)
     }
-
-    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
-        if *pos >= data.len() {
-            return false;
-        }
-        if data[*pos] & TYPE_MASK != ARRAY_MASK {
-            return false;
-        }
-
-        let Length(length) = Length::read(data, *pos);
-        *pos += 2;
-        for _ in 0..length {
-            if !Value::skip_tlv(data, pos) {
-                return false;
-            }
-        }
-        true
-    }
 }
 
 #[test]

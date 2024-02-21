@@ -143,45 +143,4 @@ impl DecodeTLV<'_> for Number {
         *pos += read_total;
         Some(result)
     }
-
-    fn skip_tlv(data: &[u8], pos: &mut usize) -> bool {
-        if *pos >= data.len() {
-            return false;
-        }
-
-        let header = if let Some(h) = HeaderByte::read(data, *pos) {
-            h
-        } else {
-            return false;
-        };
-
-        if !header.multibyte {
-            *pos += 1;
-            return true;
-        }
-
-        let mut length = 0;
-        let mut idx = 1;
-        let mut read_total = 1;
-
-        loop {
-            let NonHeaderByteReadResult { length_part, .. } = NonHeaderByte::read(data, *pos + idx);
-            read_total += 1;
-
-            if let Some(l) = length_part {
-                length |= (l as usize) << (3 * (idx - 1));
-            } else {
-                break;
-            }
-
-            idx += 1;
-
-            if idx >= length {
-                break;
-            }
-        }
-
-        *pos += read_total;
-        true
-    }
 }
